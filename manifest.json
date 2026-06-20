@@ -1,0 +1,8 @@
+{
+  "name": "列車走行位置",
+  "short_name": "列車走行位置",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#111111"
+}
