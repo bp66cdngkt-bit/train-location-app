@@ -2,15 +2,12 @@
 <html lang="ja">
 <head>
 
-
-
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#111111">
 
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="列車走行位置">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-
 
 
   <meta charset="UTF-8">
@@ -1075,6 +1072,61 @@
       }
     }
 
+
+    /* ヘッダー最上段はタイトルではなく、細い空白帯にする */
+    #top-title-row {
+      height: 8px !important;
+      min-height: 8px !important;
+      max-height: 8px !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      line-height: 8px !important;
+      font-size: 0 !important;
+      background-color: #ffffff !important;
+      white-space: nowrap;
+    }
+
+    /* 上の操作ヘッダーは画面内で固定 */
+    #sticky-control-wrapper {
+      position: sticky !important;
+      top: 0 !important;
+      z-index: 3000 !important;
+      background-color: #ffffff !important;
+      box-shadow: none !important;
+      border: none !important;
+    }
+
+    @media (max-width: 640px) {
+      #top-title-row {
+        height: 6px !important;
+        min-height: 6px !important;
+        max-height: 6px !important;
+        line-height: 6px !important;
+      }
+    }
+
+
+    /* ヘッダーは固定したまま、詳細ウィンドウより下に置く */
+    #sticky-control-wrapper {
+      position: sticky !important;
+      top: 0 !important;
+      z-index: 1000 !important;
+      background-color: #ffffff !important;
+      box-shadow: none !important;
+      border: none !important;
+    }
+
+    #detail-modal,
+    .modal-overlay,
+    .modal-backdrop {
+      z-index: 10000 !important;
+    }
+
+    .modal-content,
+    .modal-window {
+      z-index: 10001 !important;
+    }
+
   </style>
 
   <script src="https://cdn.jsdelivr.net/npm/protobufjs@7.4.0/dist/protobuf.min.js"></script>
@@ -1109,7 +1161,7 @@
 
 
   <div id="sticky-control-wrapper">
-    <div id="top-title-row">在線位置</div>
+    <div id="top-title-row" aria-hidden="true"></div>
 <div class="selector-container">
     <div class="selector-group">
       <label for="company-select">運行会社：</label>
@@ -9779,6 +9831,794 @@
 
     return __baseBuildTrainRouteDetailTableAllJapanese(fixedTrain, fixedTimetable);
   };
+
+
+
+  /* ===== 浅草線：Miur / Miurakaigan 行先の日本語補正 =====
+     ODPT側で Miurakaigan などのローマ字駅名が入り、
+     4文字短縮処理後に Miur と表示される場合があるため補正する。
+  */
+
+  if (typeof globalStationJapaneseNameMap !== 'undefined') {
+    globalStationJapaneseNameMap['Miur'] = '三浦海岸';
+    globalStationJapaneseNameMap['Miura'] = '三浦海岸';
+    globalStationJapaneseNameMap['MiuraKaigan'] = '三浦海岸';
+    globalStationJapaneseNameMap['Miurakaigan'] = '三浦海岸';
+    globalStationJapaneseNameMap['KeikyuMiurakaigan'] = '三浦海岸';
+
+    // ついでに浅草線直通で出やすい京急側の主要行先も補強
+    globalStationJapaneseNameMap['KeikyuKawasaki'] = '京急川崎';
+    globalStationJapaneseNameMap['KeikyuTsurumi'] = '京急鶴見';
+    globalStationJapaneseNameMap['KanagawaShimmachi'] = '神奈川新町';
+    globalStationJapaneseNameMap['Yokohama'] = '横浜';
+    globalStationJapaneseNameMap['Kamiooka'] = '上大岡';
+    globalStationJapaneseNameMap['KeikyuKurihama'] = '京急久里浜';
+    globalStationJapaneseNameMap['Misakiguchi'] = '三崎口';
+  }
+
+  var __baseToJapaneseStationNameForMiur =
+    typeof toJapaneseStationName === 'function' ? toJapaneseStationName : null;
+
+  if (__baseToJapaneseStationNameForMiur) {
+    toJapaneseStationName = function(value) {
+      if (value === null || value === undefined) return value;
+
+      var text = String(value);
+
+      if (typeof globalStationJapaneseNameMap !== 'undefined') {
+        if (globalStationJapaneseNameMap[text]) return globalStationJapaneseNameMap[text];
+
+        var tail = text;
+        if (tail.indexOf(':') >= 0) tail = tail.split(':').pop();
+        if (tail.indexOf('.') >= 0) tail = tail.split('.').pop();
+
+        if (globalStationJapaneseNameMap[tail]) return globalStationJapaneseNameMap[tail];
+
+        // 4文字短縮後に Miur だけ残っている場合
+        if (tail === 'Miur') return '三浦海岸';
+      }
+
+      return __baseToJapaneseStationNameForMiur(value);
+    };
+  }
+
+
+
+  /* ===== 行先表示を列車アイコン側も4文字に統一＋ヘッダー固定補強 ===== */
+
+  function destinationDisplayFourChars(value) {
+    if (value === null || value === undefined) return value;
+
+    var text = String(value);
+    if (!text) return text;
+
+    // まず日本語補正
+    if (typeof toJapaneseStationName === 'function') {
+      text = toJapaneseStationName(text);
+    }
+
+    // 既存の4文字短縮関数があればそれを使う
+    if (typeof shortenStationNameForDisplay === 'function') {
+      return shortenStationNameForDisplay(text);
+    }
+
+    var chars = Array.from(text);
+    return chars.length > 4 ? chars.slice(0, 4).join('') : text;
+  }
+
+  // 行先用の短縮関数は、必ず4文字以内にする
+  displayDestinationShort = function(name) {
+    return destinationDisplayFourChars(name);
+  };
+
+  // 列車データに入る行先も、表示用として4文字に寄せる
+  function normalizeTrainDestinationForDisplay(train) {
+    if (!train) return train;
+
+    if (train.destination !== undefined && train.destination !== null && train.destination !== '') {
+      train.destination = destinationDisplayFourChars(train.destination);
+    }
+
+    return train;
+  }
+
+  var __baseConvertOdptTrainsForDestination4 =
+    typeof convertOdptTrains === 'function' ? convertOdptTrains : null;
+
+  if (__baseConvertOdptTrainsForDestination4) {
+    convertOdptTrains = function(lineId, trainData, stationMap) {
+      var trains = __baseConvertOdptTrainsForDestination4(lineId, trainData, stationMap) || [];
+
+      for (var i = 0; i < trains.length; i++) {
+        trains[i] = normalizeTrainDestinationForDisplay(trains[i]);
+      }
+
+      return trains;
+    };
+  }
+
+  var __baseBuildTrainIconHtmlForDestination4 =
+    typeof buildTrainIconHtml === 'function' ? buildTrainIconHtml : null;
+
+  if (__baseBuildTrainIconHtmlForDestination4) {
+    buildTrainIconHtml = function(train) {
+      var copy = Object.assign({}, train);
+      copy.destination = destinationDisplayFourChars(copy.destination);
+      return __baseBuildTrainIconHtmlForDestination4(copy);
+    };
+  }
+
+  var __baseRenderTrainIconForDestination4 =
+    typeof renderTrainIcon === 'function' ? renderTrainIcon : null;
+
+  if (__baseRenderTrainIconForDestination4) {
+    renderTrainIcon = function(train) {
+      var copy = Object.assign({}, train);
+      copy.destination = destinationDisplayFourChars(copy.destination);
+      return __baseRenderTrainIconForDestination4(copy);
+    };
+  }
+
+  var __baseCreateTrainIconElementForDestination4 =
+    typeof createTrainIconElement === 'function' ? createTrainIconElement : null;
+
+  if (__baseCreateTrainIconElementForDestination4) {
+    createTrainIconElement = function(train) {
+      var copy = Object.assign({}, train);
+      copy.destination = destinationDisplayFourChars(copy.destination);
+      return __baseCreateTrainIconElementForDestination4(copy);
+    };
+  }
+
+  // 詳細ウィンドウ上部の「【列番】 種別 行先」も、行先だけ4文字にする
+  var __baseShowTrainDetailForDestination4 =
+    typeof showTrainDetail === 'function' ? showTrainDetail : null;
+
+  if (__baseShowTrainDetailForDestination4) {
+    showTrainDetail = function(trainArg) {
+      if (typeof trainArg === 'object' && trainArg !== null) {
+        var copyArg = Object.assign({}, trainArg);
+        copyArg.destination = destinationDisplayFourChars(copyArg.destination);
+        __baseShowTrainDetailForDestination4(copyArg);
+        return;
+      }
+
+      __baseShowTrainDetailForDestination4(trainArg);
+
+      // ベース処理後、タイトル内に長い行先が残った場合に置換
+      try {
+        var title = document.getElementById('modal-title');
+        if (title) {
+          var text = title.innerText || '';
+          if (text) {
+            var parts = text.split(' ');
+            if (parts.length >= 3) {
+              var dest = parts.slice(2).join(' ');
+              parts = [parts[0], parts[1], destinationDisplayFourChars(dest)];
+              title.innerText = parts.join(' ');
+            }
+          }
+        }
+      } catch (e) {}
+    };
+  }
+
+  // 駅アイコン内の表に出る行先も念のため4文字にする
+  var __baseBuildUnifiedRowForDestination4 =
+    typeof buildUnifiedRow === 'function' ? buildUnifiedRow : null;
+
+  if (__baseBuildUnifiedRowForDestination4) {
+    buildUnifiedRow = function(trainNumber, type, destination, delay, planArr, planDep, track, isPassed, runningPosition, isPass, passTime) {
+      return __baseBuildUnifiedRowForDestination4(
+        trainNumber,
+        type,
+        destinationDisplayFourChars(destination),
+        delay,
+        planArr,
+        planDep,
+        track,
+        isPassed,
+        runningPosition,
+        isPass,
+        passTime
+      );
+    };
+  }
+
+  // 念のため初期表示後にもヘッダー固定を補強
+  window.addEventListener('load', function() {
+    var header = document.getElementById('sticky-control-wrapper');
+    if (header) {
+      header.style.position = 'sticky';
+      header.style.top = '0';
+      header.style.zIndex = '3000';
+      header.style.backgroundColor = '#ffffff';
+    }
+  });
+
+
+
+  /* ===== ヘッダー重なり順修正＋通常列車の予測時刻復活 =====
+     ・ヘッダーの帯は固定のまま、駅/列車詳細ウィンドウより下にする
+     ・着予測/発予測を「―」にする指定は通過列車の場合だけに限定
+     ・通常列車は、遅延が未取得でも予測欄を計画時刻ベースで表示する
+  */
+
+  function finalHasTimeValue(value) {
+    return value !== null && value !== undefined && value !== '' && value !== '--:--' && value !== '―';
+  }
+
+  function finalDisplayTime(value) {
+    if (value === null || value === undefined || value === '--:--' || value === '―') return '―';
+    if (value === '') return '';
+    return value;
+  }
+
+  function finalDisplayCell(value) {
+    if (value === null || value === undefined || value === '--:--' || value === '―') return '―';
+    if (value === '') return '';
+    return value;
+  }
+
+  function finalHasDelay(delay) {
+    return delay !== null && delay !== undefined && delay !== '' && delay !== '―' && !Number.isNaN(Number(delay));
+  }
+
+  function finalDelayValueOrZero(delay) {
+    return finalHasDelay(delay) ? Number(delay || 0) : 0;
+  }
+
+  function finalDelayText(delay) {
+    if (!finalHasDelay(delay)) return '―';
+    return formatDelayCode(Number(delay || 0));
+  }
+
+  function finalDelayClass(delay) {
+    if (!finalHasDelay(delay)) return '';
+    return getStatusClass(Number(delay || 0));
+  }
+
+  function finalIsPassRow(row) {
+    return !!(row && row.isPass);
+  }
+
+  function finalGetPassTime(row) {
+    if (!row) return null;
+    if (finalHasTimeValue(row.passTime)) return row.passTime;
+    if (row.isPass && finalHasTimeValue(row.planDep)) return row.planDep;
+    if (row.isPass && finalHasTimeValue(row.dep)) return row.dep;
+    return null;
+  }
+
+  function finalDestination4(value) {
+    if (value === null || value === undefined || value === '') return value;
+
+    var text = String(value);
+    if (typeof toJapaneseStationName === 'function') text = toJapaneseStationName(text);
+    if (typeof shortenStationNameForDisplay === 'function') return shortenStationNameForDisplay(text);
+
+    var chars = Array.from(text);
+    return chars.length > 4 ? chars.slice(0, 4).join('') : text;
+  }
+
+  displayDestinationShort = function(name) {
+    return finalDestination4(name);
+  };
+
+  buildUnifiedRow = function(trainNumber, type, destination, delay, planArr, planDep, track, isPassed, runningPosition, isPass, passTime) {
+    var delayKnown = finalHasDelay(delay);
+    var delayValue = finalDelayValueOrZero(delay);
+
+    var showArrPlan = planArr;
+    var showArrPred = null;
+    var showDepPlan = planDep;
+    var showDepPred = null;
+
+    if (isPass) {
+      // 通過列車：着計画・着予測は常に「―」
+      showArrPlan = null;
+      showArrPred = null;
+
+      var usablePassTime = finalHasTimeValue(passTime) ? passTime : (finalHasTimeValue(planDep) ? planDep : null);
+
+      if (finalHasTimeValue(usablePassTime)) {
+        // 通過時刻がある場合だけ、発計画・発予測を表示
+        showDepPlan = usablePassTime;
+        showDepPred = addDelayToTime(usablePassTime, delayValue);
+      } else {
+        // 通過時刻がない場合、発計画・発予測も「―」
+        showDepPlan = null;
+        showDepPred = null;
+      }
+    } else {
+      // 通常列車：予測時刻は表示する。遅延未取得なら0分扱いで計画時刻ベース。
+      showArrPred = finalHasTimeValue(planArr) ? addDelayToTime(planArr, delayValue) : null;
+      showDepPred = finalHasTimeValue(planDep) ? calcDeparturePrediction(planArr, planDep, delayValue) : null;
+    }
+
+    var arrPredClass = isPassed ? '' : ' class="text-blue"';
+    var depPredClass = isPassed ? '' : ' class="text-blue"';
+
+    var row = '<tr>';
+    row += '<td>' + finalDisplayCell(trainNumber) + '</td>';
+    row += '<td>' + finalDisplayCell(type) + '</td>';
+    row += '<td>' + (destination === '' ? '' : finalDisplayCell(finalDestination4(destination))) + '</td>';
+    row += '<td class="' + finalDelayClass(delay) + '">' + finalDelayText(delay) + '</td>';
+
+    if (typeof buildUnifiedHeader === 'function' && String(buildUnifiedHeader()).indexOf('走行位置') >= 0) {
+      row += '<td>' + finalDisplayCell(runningPosition) + '</td>';
+    }
+
+    row += '<td>' + finalDisplayTime(showArrPlan) + '</td>';
+    row += '<td' + arrPredClass + '>' + finalDisplayTime(showArrPred) + '</td>';
+    row += '<td>' + finalDisplayTime(showDepPlan) + '</td>';
+    row += '<td' + depPredClass + '>' + finalDisplayTime(showDepPred) + '</td>';
+    row += '<td>' + finalDisplayCell(track) + '</td>';
+    row += '</tr>';
+
+    return row;
+  };
+
+  buildTrainRouteDetailTable = function(train, timetable) {
+    var passedIndex = -1;
+
+    for (var i = 0; i < timetable.length; i++) {
+      if (train.locationType === 'station' && timetable[i].name === train.atStation) {
+        passedIndex = i;
+      }
+      if (train.locationType === 'between' && timetable[i].name === train.fromStation) {
+        passedIndex = i;
+      }
+    }
+
+    var tableHtml = '<table class="modal-table train-detail-table">';
+    tableHtml += '<colgroup>';
+    tableHtml += '<col class="col-station">';
+    tableHtml += '<col class="col-status">';
+    tableHtml += '<col class="col-time">';
+    tableHtml += '<col class="col-time">';
+    tableHtml += '<col class="col-time">';
+    tableHtml += '<col class="col-time">';
+    tableHtml += '<col class="col-track">';
+    tableHtml += '</colgroup>';
+    tableHtml += '<thead><tr>';
+    tableHtml += '<th>駅名</th>';
+    tableHtml += '<th>遅延(分)</th>';
+    tableHtml += '<th>着計画</th>';
+    tableHtml += '<th>着予測</th>';
+    tableHtml += '<th>発計画</th>';
+    tableHtml += '<th>発予測</th>';
+    tableHtml += '<th>番線</th>';
+    tableHtml += '</tr></thead>';
+    tableHtml += '<tbody>';
+
+    for (var j = 0; j < timetable.length; j++) {
+      var row = timetable[j];
+      if (typeof normalizePassRow === 'function') row = normalizePassRow(row);
+
+      var knownDelay = typeof getKnownDelayValueForTrainRow === 'function'
+        ? getKnownDelayValueForTrainRow(train, row, j, passedIndex)
+        : (row.delay !== undefined ? row.delay : train.delay);
+
+      var delayValue = finalDelayValueOrZero(knownDelay);
+      var delayText = finalDelayText(knownDelay);
+      var delayClass = finalDelayClass(knownDelay);
+
+      var showArrPlan = row.planArr;
+      var showArrPred = finalHasTimeValue(row.planArr) ? addDelayToTime(row.planArr, delayValue) : null;
+      var showDepPlan = row.planDep;
+      var showDepPred = finalHasTimeValue(row.planDep) ? calcDeparturePrediction(row.planArr, row.planDep, delayValue) : null;
+
+      if (row.isPass) {
+        var usablePassTime = finalGetPassTime(row);
+
+        showArrPlan = null;
+        showArrPred = null;
+
+        if (finalHasTimeValue(usablePassTime)) {
+          // 通過時刻ありの通過駅：発計画・発予測を表示
+          showDepPlan = usablePassTime;
+          showDepPred = addDelayToTime(usablePassTime, delayValue);
+        } else {
+          // 通過時刻なしの通過駅：番線のみ表示
+          knownDelay = null;
+          delayText = '―';
+          delayClass = '';
+          showDepPlan = null;
+          showDepPred = null;
+        }
+      }
+
+      var isPassed = j <= passedIndex;
+      var arrPredClass = isPassed ? '' : ' class="text-blue"';
+      var depPredClass = isPassed ? '' : ' class="text-blue"';
+      var trClass = row.isPass ? ' class="pass-row"' : '';
+
+      var stationName = row.name;
+      if (typeof toJapaneseStationName === 'function') stationName = toJapaneseStationName(stationName);
+
+      tableHtml += '<tr' + trClass + '>';
+      tableHtml += '<td>' + finalDisplayCell(stationName) + '</td>';
+      tableHtml += '<td class="' + delayClass + '">' + delayText + '</td>';
+      tableHtml += '<td>' + finalDisplayTime(showArrPlan) + '</td>';
+      tableHtml += '<td' + arrPredClass + '>' + finalDisplayTime(showArrPred) + '</td>';
+      tableHtml += '<td>' + finalDisplayTime(showDepPlan) + '</td>';
+      tableHtml += '<td' + depPredClass + '>' + finalDisplayTime(showDepPred) + '</td>';
+      tableHtml += '<td>' + finalDisplayCell(row.track || train.track || null) + '</td>';
+      tableHtml += '</tr>';
+    }
+
+    tableHtml += '</tbody></table>';
+    return tableHtml;
+  };
+
+  // モーダルを開く時にも、ヘッダーより必ず前面に出す
+  function finalRaiseModalAboveHeader() {
+    var modal = document.getElementById('detail-modal');
+    if (modal) modal.style.zIndex = '10000';
+
+    var header = document.getElementById('sticky-control-wrapper');
+    if (header) header.style.zIndex = '1000';
+  }
+
+  var __baseShowStationDetailFinalLayer =
+    typeof showStationDetail === 'function' ? showStationDetail : null;
+
+  if (__baseShowStationDetailFinalLayer) {
+    showStationDetail = function(stationName) {
+      __baseShowStationDetailFinalLayer(stationName);
+      finalRaiseModalAboveHeader();
+    };
+  }
+
+  var __baseShowTrainDetailFinalLayer =
+    typeof showTrainDetail === 'function' ? showTrainDetail : null;
+
+  if (__baseShowTrainDetailFinalLayer) {
+    showTrainDetail = function(trainArg) {
+      __baseShowTrainDetailFinalLayer(trainArg);
+      finalRaiseModalAboveHeader();
+    };
+  }
+
+  window.addEventListener('load', function() {
+    var header = document.getElementById('sticky-control-wrapper');
+    if (header) {
+      header.style.position = 'sticky';
+      header.style.top = '0';
+      header.style.zIndex = '1000';
+      header.style.backgroundColor = '#ffffff';
+    }
+  });
+
+
+
+  /* ===== 予測時刻表示ルール最終修正 =====
+     停車：
+       着予測・発予測ともに表示する。
+       遅延が未取得の場合は0分扱いで計画時刻ベースの予測を表示する。
+     通過・通過時刻指定あり：
+       着計画・着予測は「―」。
+       発計画・発予測は表示する。
+     通過・通過時刻指定なし：
+       着計画・着予測・発計画・発予測はすべて「―」。
+  */
+
+  function predictionRuleHasTime(value) {
+    return value !== null && value !== undefined && value !== '' && value !== '--:--' && value !== '―';
+  }
+
+  function predictionRuleDisplayTime(value) {
+    if (value === null || value === undefined || value === '--:--' || value === '―') return '―';
+    if (value === '') return '';
+    return value;
+  }
+
+  function predictionRuleDisplayCell(value) {
+    if (value === null || value === undefined || value === '--:--' || value === '―') return '―';
+    if (value === '') return '';
+    return value;
+  }
+
+  function predictionRuleHasDelay(delay) {
+    return delay !== null && delay !== undefined && delay !== '' && delay !== '―' && !Number.isNaN(Number(delay));
+  }
+
+  function predictionRuleDelayValue(delay) {
+    return predictionRuleHasDelay(delay) ? Number(delay || 0) : 0;
+  }
+
+  function predictionRuleDelayText(delay) {
+    if (!predictionRuleHasDelay(delay)) return '―';
+    return formatDelayCode(Number(delay || 0));
+  }
+
+  function predictionRuleDelayClass(delay) {
+    if (!predictionRuleHasDelay(delay)) return '';
+    return getStatusClass(Number(delay || 0));
+  }
+
+  function predictionRuleDestination4(value) {
+    if (value === null || value === undefined || value === '') return value;
+
+    var text = String(value);
+    if (typeof toJapaneseStationName === 'function') text = toJapaneseStationName(text);
+    if (typeof shortenStationNameForDisplay === 'function') return shortenStationNameForDisplay(text);
+
+    var chars = Array.from(text);
+    return chars.length > 4 ? chars.slice(0, 4).join('') : text;
+  }
+
+  function predictionRulePassTime(row, planDep, passTime) {
+    if (predictionRuleHasTime(passTime)) return passTime;
+    if (row && predictionRuleHasTime(row.passTime)) return row.passTime;
+    if (row && row.isPass && predictionRuleHasTime(row.planDep)) return row.planDep;
+    if (row && row.isPass && predictionRuleHasTime(row.dep)) return row.dep;
+    if (predictionRuleHasTime(planDep)) return planDep;
+    return null;
+  }
+
+  function predictionRuleCalcStopTimes(planArr, planDep, delay) {
+    var delayValue = predictionRuleDelayValue(delay);
+
+    return {
+      arrPlan: planArr,
+      arrPred: predictionRuleHasTime(planArr) ? addDelayToTime(planArr, delayValue) : null,
+      depPlan: planDep,
+      depPred: predictionRuleHasTime(planDep) ? calcDeparturePrediction(planArr, planDep, delayValue) : null
+    };
+  }
+
+  function predictionRuleCalcPassTimes(row, planDep, delay, passTime) {
+    var usablePassTime = predictionRulePassTime(row, planDep, passTime);
+    var delayValue = predictionRuleDelayValue(delay);
+
+    if (predictionRuleHasTime(usablePassTime)) {
+      return {
+        arrPlan: null,
+        arrPred: null,
+        depPlan: usablePassTime,
+        depPred: addDelayToTime(usablePassTime, delayValue)
+      };
+    }
+
+    return {
+      arrPlan: null,
+      arrPred: null,
+      depPlan: null,
+      depPred: null
+    };
+  }
+
+  displayDestinationShort = function(name) {
+    return predictionRuleDestination4(name);
+  };
+
+  buildUnifiedRow = function(trainNumber, type, destination, delay, planArr, planDep, track, isPassed, runningPosition, isPass, passTime) {
+    var times = isPass
+      ? predictionRuleCalcPassTimes(null, planDep, delay, passTime)
+      : predictionRuleCalcStopTimes(planArr, planDep, delay);
+
+    var arrPredClass = isPassed ? '' : ' class="text-blue"';
+    var depPredClass = isPassed ? '' : ' class="text-blue"';
+
+    var row = '<tr>';
+    row += '<td>' + predictionRuleDisplayCell(trainNumber) + '</td>';
+    row += '<td>' + predictionRuleDisplayCell(type) + '</td>';
+    row += '<td>' + (destination === '' ? '' : predictionRuleDisplayCell(predictionRuleDestination4(destination))) + '</td>';
+    row += '<td class="' + predictionRuleDelayClass(delay) + '">' + predictionRuleDelayText(delay) + '</td>';
+
+    if (typeof buildUnifiedHeader === 'function' && String(buildUnifiedHeader()).indexOf('走行位置') >= 0) {
+      row += '<td>' + predictionRuleDisplayCell(runningPosition) + '</td>';
+    }
+
+    row += '<td>' + predictionRuleDisplayTime(times.arrPlan) + '</td>';
+    row += '<td' + arrPredClass + '>' + predictionRuleDisplayTime(times.arrPred) + '</td>';
+    row += '<td>' + predictionRuleDisplayTime(times.depPlan) + '</td>';
+    row += '<td' + depPredClass + '>' + predictionRuleDisplayTime(times.depPred) + '</td>';
+    row += '<td>' + predictionRuleDisplayCell(track) + '</td>';
+    row += '</tr>';
+
+    return row;
+  };
+
+  buildTrainRouteDetailTable = function(train, timetable) {
+    var passedIndex = -1;
+
+    for (var i = 0; i < timetable.length; i++) {
+      if (train.locationType === 'station' && timetable[i].name === train.atStation) {
+        passedIndex = i;
+      }
+      if (train.locationType === 'between' && timetable[i].name === train.fromStation) {
+        passedIndex = i;
+      }
+    }
+
+    var tableHtml = '<table class="modal-table train-detail-table">';
+    tableHtml += '<colgroup>';
+    tableHtml += '<col class="col-station">';
+    tableHtml += '<col class="col-status">';
+    tableHtml += '<col class="col-time">';
+    tableHtml += '<col class="col-time">';
+    tableHtml += '<col class="col-time">';
+    tableHtml += '<col class="col-time">';
+    tableHtml += '<col class="col-track">';
+    tableHtml += '</colgroup>';
+    tableHtml += '<thead><tr>';
+    tableHtml += '<th>駅名</th>';
+    tableHtml += '<th>遅延(分)</th>';
+    tableHtml += '<th>着計画</th>';
+    tableHtml += '<th>着予測</th>';
+    tableHtml += '<th>発計画</th>';
+    tableHtml += '<th>発予測</th>';
+    tableHtml += '<th>番線</th>';
+    tableHtml += '</tr></thead>';
+    tableHtml += '<tbody>';
+
+    for (var j = 0; j < timetable.length; j++) {
+      var row = timetable[j];
+      if (typeof normalizePassRow === 'function') row = normalizePassRow(row);
+
+      var knownDelay = typeof getKnownDelayValueForTrainRow === 'function'
+        ? getKnownDelayValueForTrainRow(train, row, j, passedIndex)
+        : (row.delay !== undefined ? row.delay : train.delay);
+
+      var times = row.isPass
+        ? predictionRuleCalcPassTimes(row, row.planDep, knownDelay, row.passTime)
+        : predictionRuleCalcStopTimes(row.planArr, row.planDep, knownDelay);
+
+      var delayText = predictionRuleDelayText(knownDelay);
+      var delayClass = predictionRuleDelayClass(knownDelay);
+
+      // 通過時刻指定なしの通過駅は、遅延も「―」にする。番線のみ表示。
+      if (row.isPass && !predictionRuleHasTime(predictionRulePassTime(row, row.planDep, row.passTime))) {
+        knownDelay = null;
+        delayText = '―';
+        delayClass = '';
+      }
+
+      var isPassed = j <= passedIndex;
+      var arrPredClass = isPassed ? '' : ' class="text-blue"';
+      var depPredClass = isPassed ? '' : ' class="text-blue"';
+      var trClass = row.isPass ? ' class="pass-row"' : '';
+
+      var stationName = row.name;
+      if (typeof toJapaneseStationName === 'function') stationName = toJapaneseStationName(stationName);
+
+      tableHtml += '<tr' + trClass + '>';
+      tableHtml += '<td>' + predictionRuleDisplayCell(stationName) + '</td>';
+      tableHtml += '<td class="' + delayClass + '">' + delayText + '</td>';
+      tableHtml += '<td>' + predictionRuleDisplayTime(times.arrPlan) + '</td>';
+      tableHtml += '<td' + arrPredClass + '>' + predictionRuleDisplayTime(times.arrPred) + '</td>';
+      tableHtml += '<td>' + predictionRuleDisplayTime(times.depPlan) + '</td>';
+      tableHtml += '<td' + depPredClass + '>' + predictionRuleDisplayTime(times.depPred) + '</td>';
+      tableHtml += '<td>' + predictionRuleDisplayCell(row.track || train.track || null) + '</td>';
+      tableHtml += '</tr>';
+    }
+
+    tableHtml += '</tbody></table>';
+    return tableHtml;
+  };
+
+
+
+  /* ===== 列車アイコン詳細タイトルの行先だけフル表示 =====
+     列車アイコン本体や駅アイコン表では行先4文字表示を維持。
+     列車アイコンを押した先のタイトル部分だけ、印旛日本医大などをフル表示する。
+  */
+
+  function fullDestinationFromOdptRaw(raw, stationMap) {
+    if (!raw) return '';
+
+    var dest = raw['odpt:destinationStation'];
+    if (Array.isArray(dest)) dest = dest[0];
+
+    if (!dest) return '';
+
+    var name = '';
+    if (typeof getNameFromStationUri === 'function') {
+      name = getNameFromStationUri(dest, stationMap || {});
+    } else {
+      name = String(dest).split('.').pop();
+    }
+
+    if (typeof toJapaneseStationName === 'function') {
+      name = toJapaneseStationName(name);
+    }
+
+    return name || '';
+  }
+
+  function findCurrentTrainForModalTitle(trainArg) {
+    if (typeof trainArg === 'object' && trainArg !== null) {
+      return trainArg;
+    }
+
+    if (typeof currentTrains === 'undefined' || !Array.isArray(currentTrains)) return null;
+
+    for (var i = 0; i < currentTrains.length; i++) {
+      if (currentTrains[i].id === trainArg) return currentTrains[i];
+    }
+
+    return null;
+  }
+
+  function fullDestinationForTrainModal(train) {
+    if (!train) return '';
+
+    var dest =
+      train.destinationFull ||
+      train.fullDestination ||
+      train.destinationOriginal ||
+      train.destinationRaw ||
+      '';
+
+    if (!dest && train.destination) dest = train.destination;
+
+    if (typeof toJapaneseStationName === 'function') {
+      dest = toJapaneseStationName(dest);
+    }
+
+    return dest || '';
+  }
+
+  var __baseConvertOdptTrainsForFullDestinationTitle =
+    typeof convertOdptTrains === 'function' ? convertOdptTrains : null;
+
+  if (__baseConvertOdptTrainsForFullDestinationTitle) {
+    convertOdptTrains = function(lineId, trainData, stationMap) {
+      var trains = __baseConvertOdptTrainsForFullDestinationTitle(lineId, trainData, stationMap) || [];
+
+      for (var i = 0; i < trains.length; i++) {
+        var raw = Array.isArray(trainData) ? trainData[i] : null;
+        var fullDest = fullDestinationFromOdptRaw(raw, stationMap);
+
+        if (fullDest) {
+          trains[i].destinationFull = fullDest;
+        } else if (!trains[i].destinationFull && trains[i].destination) {
+          trains[i].destinationFull = trains[i].destination;
+        }
+      }
+
+      return trains;
+    };
+  }
+
+  var __baseShowTrainDetailForFullDestinationTitle =
+    typeof showTrainDetail === 'function' ? showTrainDetail : null;
+
+  if (__baseShowTrainDetailForFullDestinationTitle) {
+    showTrainDetail = function(trainArg) {
+      var trainBefore = findCurrentTrainForModalTitle(trainArg);
+      var fullDestBefore = fullDestinationForTrainModal(trainBefore);
+
+      __baseShowTrainDetailForFullDestinationTitle(trainArg);
+
+      var trainAfter = findCurrentTrainForModalTitle(trainArg) || trainBefore;
+      var fullDest = fullDestinationForTrainModal(trainAfter) || fullDestBefore;
+
+      if (!fullDest) return;
+
+      var title = document.getElementById('modal-title');
+      if (!title) return;
+
+      var number = trainAfter && trainAfter.trainNumber ? trainAfter.trainNumber : '';
+      var type = trainAfter && trainAfter.type ? trainAfter.type : '';
+
+      // タイトルだけはフル行先にする
+      if (number || type) {
+        title.innerText = '【' + number + '】 ' + type + ' ' + fullDest;
+      } else {
+        // 念のため、既存タイトル末尾だけ差し替える
+        var current = title.innerText || '';
+        var parts = current.split(' ');
+        if (parts.length >= 3) {
+          parts[parts.length - 1] = fullDest;
+          title.innerText = parts.join(' ');
+        }
+      }
+    };
+  }
 
 
 </script>
