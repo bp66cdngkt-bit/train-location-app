@@ -2,12 +2,14 @@
 <html lang="ja">
 <head>
 
+
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#111111">
 
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="列車走行位置">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
 
 
   <meta charset="UTF-8">
@@ -1125,6 +1127,110 @@
     .modal-content,
     .modal-window {
       z-index: 10001 !important;
+    }
+
+
+    /* 通停列 */
+    .col-tsutei {
+      width: 42px;
+    }
+
+    .unified-detail-table col.col-tsutei,
+    .train-detail-table col.col-tsutei {
+      width: 42px;
+    }
+
+    .unified-detail-table th:nth-child(4),
+    .unified-detail-table td:nth-child(4),
+    .train-detail-table th:nth-child(2),
+    .train-detail-table td:nth-child(2) {
+      white-space: nowrap;
+      text-align: center;
+    }
+
+
+    /* ===== 駅アイコン内の表を窮屈にしない調整 =====
+       駅アイコン表は列数が増えた分、横幅に余裕を持たせる。
+       列車アイコン表は大きく変えず、駅アイコン表中心の調整。
+    */
+
+    .modal-content {
+      max-width: 96vw !important;
+      min-width: 760px !important;
+    }
+
+    .unified-detail-table {
+      min-width: 980px !important;
+      table-layout: fixed !important;
+      font-size: 12px !important;
+    }
+
+    .unified-detail-table th,
+    .unified-detail-table td {
+      padding: 6px 6px !important;
+    }
+
+    .unified-detail-table col.col-trainno { width: 76px !important; }
+    .unified-detail-table col.col-type { width: 72px !important; }
+    .unified-detail-table col.col-dest { width: 86px !important; }
+    .unified-detail-table col.col-tsutei { width: 44px !important; }
+    .unified-detail-table col.col-status { width: 64px !important; }
+    .unified-detail-table col.col-location { width: 104px !important; }
+    .unified-detail-table col.col-time { width: 84px !important; }
+    .unified-detail-table col.col-track { width: 52px !important; }
+
+    @media (max-width: 768px) {
+      .modal-content {
+        min-width: 0 !important;
+        width: calc(100vw - 24px) !important;
+        max-width: calc(100vw - 24px) !important;
+      }
+
+      .unified-detail-table {
+        min-width: 980px !important;
+      }
+    }
+
+
+    /* ===== 駅アイコン内表サイズ：送ってもらった元サイズ寄せ =====
+       前回の広げすぎを戻し、通停列だけ追加した分だけ最低限足す。
+    */
+
+    .modal-content {
+      min-width: 560px !important;
+      max-width: 92vw !important;
+    }
+
+    .unified-detail-table {
+      min-width: 790px !important;
+      table-layout: fixed !important;
+      font-size: 11.5px !important;
+    }
+
+    .unified-detail-table th,
+    .unified-detail-table td {
+      padding: 5px 3px !important;
+    }
+
+    .unified-detail-table col.col-trainno { width: 72px !important; }
+    .unified-detail-table col.col-type { width: 76px !important; }
+    .unified-detail-table col.col-dest { width: 90px !important; }
+    .unified-detail-table col.col-tsutei { width: 40px !important; }
+    .unified-detail-table col.col-status { width: 58px !important; }
+    .unified-detail-table col.col-location { width: 95px !important; }
+    .unified-detail-table col.col-time { width: 72px !important; }
+    .unified-detail-table col.col-track { width: 48px !important; }
+
+    @media (max-width: 768px) {
+      .modal-content {
+        min-width: 0 !important;
+        width: calc(100vw - 24px) !important;
+        max-width: calc(100vw - 24px) !important;
+      }
+
+      .unified-detail-table {
+        min-width: 790px !important;
+      }
     }
 
   </style>
@@ -10620,6 +10726,2239 @@
     };
   }
 
+
+
+  /* ===== 通停列追加＋予測時刻は遅延時分取得済みの場合だけ表示 =====
+     駅アイコン表：
+       行先 と 遅延(分) の間に「通停」列を追加。
+     列車アイコン表：
+       駅名 と 遅延(分) の間に「通停」列を追加。
+     予測時刻：
+       停車駅でも、遅延時分が未取得なら着予測・発予測は「―」。
+       遅延時分を取得済みなら、000を含めて遅延時分を考慮して算出。
+       通過駅は、通過時刻ありの場合だけ発計画・発予測を表示。
+  */
+
+  function tsuteiFinalLabel(isPass) {
+    return isPass ? '通' : '停';
+  }
+
+  function tsuteiFinalHasTime(value) {
+    return value !== null && value !== undefined && value !== '' && value !== '--:--' && value !== '―';
+  }
+
+  function tsuteiFinalDisplayTime(value) {
+    if (value === null || value === undefined || value === '--:--' || value === '―') return '―';
+    if (value === '') return '';
+    return value;
+  }
+
+  function tsuteiFinalDisplayCell(value) {
+    if (value === null || value === undefined || value === '--:--' || value === '―') return '―';
+    if (value === '') return '';
+    return value;
+  }
+
+  function tsuteiFinalHasDelay(delay) {
+    return delay !== null && delay !== undefined && delay !== '' && delay !== '―' && !Number.isNaN(Number(delay));
+  }
+
+  function tsuteiFinalDelayValue(delay) {
+    return tsuteiFinalHasDelay(delay) ? Number(delay || 0) : null;
+  }
+
+  function tsuteiFinalDelayText(delay) {
+    if (!tsuteiFinalHasDelay(delay)) return '―';
+    return formatDelayCode(Number(delay || 0));
+  }
+
+  function tsuteiFinalDelayClass(delay) {
+    if (!tsuteiFinalHasDelay(delay)) return '';
+    return getStatusClass(Number(delay || 0));
+  }
+
+  function tsuteiFinalDestination4(value) {
+    if (value === null || value === undefined || value === '') return value;
+
+    var text = String(value);
+    if (typeof toJapaneseStationName === 'function') text = toJapaneseStationName(text);
+    if (typeof shortenStationNameForDisplay === 'function') return shortenStationNameForDisplay(text);
+
+    var chars = Array.from(text);
+    return chars.length > 4 ? chars.slice(0, 4).join('') : text;
+  }
+
+  function tsuteiFinalPassTime(row, planDep, passTime) {
+    if (tsuteiFinalHasTime(passTime)) return passTime;
+    if (row && tsuteiFinalHasTime(row.passTime)) return row.passTime;
+    if (row && row.isPass && tsuteiFinalHasTime(row.planDep)) return row.planDep;
+    if (row && row.isPass && tsuteiFinalHasTime(row.dep)) return row.dep;
+    if (tsuteiFinalHasTime(planDep)) return planDep;
+    return null;
+  }
+
+  function tsuteiFinalCalcStopTimes(planArr, planDep, delay) {
+    var delayValue = tsuteiFinalDelayValue(delay);
+
+    // 遅延時分がまだ分からない列車は、予測欄を「―」にする。
+    if (delayValue === null) {
+      return {
+        arrPlan: planArr,
+        arrPred: null,
+        depPlan: planDep,
+        depPred: null
+      };
+    }
+
+    return {
+      arrPlan: planArr,
+      arrPred: tsuteiFinalHasTime(planArr) ? addDelayToTime(planArr, delayValue) : null,
+      depPlan: planDep,
+      depPred: tsuteiFinalHasTime(planDep) ? calcDeparturePrediction(planArr, planDep, delayValue) : null
+    };
+  }
+
+  function tsuteiFinalCalcPassTimes(row, planDep, delay, passTime) {
+    var usablePassTime = tsuteiFinalPassTime(row, planDep, passTime);
+    var delayValue = tsuteiFinalDelayValue(delay);
+
+    if (tsuteiFinalHasTime(usablePassTime)) {
+      return {
+        arrPlan: null,
+        arrPred: null,
+        depPlan: usablePassTime,
+        depPred: delayValue === null ? null : addDelayToTime(usablePassTime, delayValue)
+      };
+    }
+
+    return {
+      arrPlan: null,
+      arrPred: null,
+      depPlan: null,
+      depPred: null
+    };
+  }
+
+  // 既存の4文字短縮は、駅アイコン表・列車アイコン本体用に維持
+  displayDestinationShort = function(name) {
+    return tsuteiFinalDestination4(name);
+  };
+
+  // 駅アイコン内の表ヘッダー
+  buildUnifiedHeader = function() {
+    var html = '<thead><tr>';
+    html += '<th>列番</th>';
+    html += '<th>種別</th>';
+    html += '<th>行先</th>';
+    html += '<th>通停</th>';
+    html += '<th>遅延(分)</th>';
+    html += '<th>走行位置</th>';
+    html += '<th>着計画</th>';
+    html += '<th>着予測</th>';
+    html += '<th>発計画</th>';
+    html += '<th>発予測</th>';
+    html += '<th>番線</th>';
+    html += '</tr></thead>';
+    return html;
+  };
+
+  // 駅アイコン内の表1行
+  buildUnifiedRow = function(trainNumber, type, destination, delay, planArr, planDep, track, isPassed, runningPosition, isPass, passTime) {
+    var times = isPass
+      ? tsuteiFinalCalcPassTimes(null, planDep, delay, passTime)
+      : tsuteiFinalCalcStopTimes(planArr, planDep, delay);
+
+    var arrPredClass = isPassed ? '' : ' class="text-blue"';
+    var depPredClass = isPassed ? '' : ' class="text-blue"';
+
+    var row = '<tr>';
+    row += '<td>' + tsuteiFinalDisplayCell(trainNumber) + '</td>';
+    row += '<td>' + tsuteiFinalDisplayCell(type) + '</td>';
+    row += '<td>' + (destination === '' ? '' : tsuteiFinalDisplayCell(tsuteiFinalDestination4(destination))) + '</td>';
+    row += '<td>' + tsuteiFinalLabel(!!isPass) + '</td>';
+    row += '<td class="' + tsuteiFinalDelayClass(delay) + '">' + tsuteiFinalDelayText(delay) + '</td>';
+    row += '<td>' + tsuteiFinalDisplayCell(runningPosition) + '</td>';
+    row += '<td>' + tsuteiFinalDisplayTime(times.arrPlan) + '</td>';
+    row += '<td' + arrPredClass + '>' + tsuteiFinalDisplayTime(times.arrPred) + '</td>';
+    row += '<td>' + tsuteiFinalDisplayTime(times.depPlan) + '</td>';
+    row += '<td' + depPredClass + '>' + tsuteiFinalDisplayTime(times.depPred) + '</td>';
+    row += '<td>' + tsuteiFinalDisplayCell(track) + '</td>';
+    row += '</tr>';
+
+    return row;
+  };
+
+  // 列車アイコン内の表
+  buildTrainRouteDetailTable = function(train, timetable) {
+    var passedIndex = -1;
+
+    for (var i = 0; i < timetable.length; i++) {
+      if (train.locationType === 'station' && timetable[i].name === train.atStation) {
+        passedIndex = i;
+      }
+      if (train.locationType === 'between' && timetable[i].name === train.fromStation) {
+        passedIndex = i;
+      }
+    }
+
+    var tableHtml = '<table class="modal-table train-detail-table">';
+    tableHtml += '<colgroup>';
+    tableHtml += '<col class="col-station">';
+    tableHtml += '<col class="col-tsutei">';
+    tableHtml += '<col class="col-status">';
+    tableHtml += '<col class="col-time">';
+    tableHtml += '<col class="col-time">';
+    tableHtml += '<col class="col-time">';
+    tableHtml += '<col class="col-time">';
+    tableHtml += '<col class="col-track">';
+    tableHtml += '</colgroup>';
+    tableHtml += '<thead><tr>';
+    tableHtml += '<th>駅名</th>';
+    tableHtml += '<th>通停</th>';
+    tableHtml += '<th>遅延(分)</th>';
+    tableHtml += '<th>着計画</th>';
+    tableHtml += '<th>着予測</th>';
+    tableHtml += '<th>発計画</th>';
+    tableHtml += '<th>発予測</th>';
+    tableHtml += '<th>番線</th>';
+    tableHtml += '</tr></thead>';
+    tableHtml += '<tbody>';
+
+    for (var j = 0; j < timetable.length; j++) {
+      var row = timetable[j];
+      if (typeof normalizePassRow === 'function') row = normalizePassRow(row);
+
+      var knownDelay = typeof getKnownDelayValueForTrainRow === 'function'
+        ? getKnownDelayValueForTrainRow(train, row, j, passedIndex)
+        : (row.delay !== undefined ? row.delay : train.delay);
+
+      var isPass = !!row.isPass;
+      var times = isPass
+        ? tsuteiFinalCalcPassTimes(row, row.planDep, knownDelay, row.passTime)
+        : tsuteiFinalCalcStopTimes(row.planArr, row.planDep, knownDelay);
+
+      var delayText = tsuteiFinalDelayText(knownDelay);
+      var delayClass = tsuteiFinalDelayClass(knownDelay);
+
+      // 通過時刻指定なしの通過駅は、番線のみ表示
+      if (isPass && !tsuteiFinalHasTime(tsuteiFinalPassTime(row, row.planDep, row.passTime))) {
+        knownDelay = null;
+        delayText = '―';
+        delayClass = '';
+      }
+
+      var isPassed = j <= passedIndex;
+      var arrPredClass = isPassed ? '' : ' class="text-blue"';
+      var depPredClass = isPassed ? '' : ' class="text-blue"';
+      var trClass = isPass ? ' class="pass-row"' : '';
+
+      var stationName = row.name;
+      if (typeof toJapaneseStationName === 'function') stationName = toJapaneseStationName(stationName);
+
+      tableHtml += '<tr' + trClass + '>';
+      tableHtml += '<td>' + tsuteiFinalDisplayCell(stationName) + '</td>';
+      tableHtml += '<td>' + tsuteiFinalLabel(isPass) + '</td>';
+      tableHtml += '<td class="' + delayClass + '">' + delayText + '</td>';
+      tableHtml += '<td>' + tsuteiFinalDisplayTime(times.arrPlan) + '</td>';
+      tableHtml += '<td' + arrPredClass + '>' + tsuteiFinalDisplayTime(times.arrPred) + '</td>';
+      tableHtml += '<td>' + tsuteiFinalDisplayTime(times.depPlan) + '</td>';
+      tableHtml += '<td' + depPredClass + '>' + tsuteiFinalDisplayTime(times.depPred) + '</td>';
+      tableHtml += '<td>' + tsuteiFinalDisplayCell(row.track || train.track || null) + '</td>';
+      tableHtml += '</tr>';
+    }
+
+    tableHtml += '</tbody></table>';
+    return tableHtml;
+  };
+
+
+
+  /* ===== 駅アイコン表のcolgroupを広めに再定義 ===== */
+
+  buildUnifiedHeader = function() {
+    var html = '<colgroup>';
+    html += '<col class="col-trainno">';
+    html += '<col class="col-type">';
+    html += '<col class="col-dest">';
+    html += '<col class="col-tsutei">';
+    html += '<col class="col-status">';
+    html += '<col class="col-location">';
+    html += '<col class="col-time">';
+    html += '<col class="col-time">';
+    html += '<col class="col-time">';
+    html += '<col class="col-time">';
+    html += '<col class="col-track">';
+    html += '</colgroup>';
+
+    html += '<thead><tr>';
+    html += '<th>列番</th>';
+    html += '<th>種別</th>';
+    html += '<th>行先</th>';
+    html += '<th>通停</th>';
+    html += '<th>遅延(分)</th>';
+    html += '<th>走行位置</th>';
+    html += '<th>着計画</th>';
+    html += '<th>着予測</th>';
+    html += '<th>発計画</th>';
+    html += '<th>発予測</th>';
+    html += '<th>番線</th>';
+    html += '</tr></thead>';
+    return html;
+  };
+
+
+  /* ===== AirportRapidLimitedExpress 表示対応 =====
+     ・AirportRapidLimitedExpress は「エアポート快特」
+     ・駅アイコン表／列車アイコン内の表では「エア快」
+     ・列車アイコンの詳細ウィンドウタイトルでは「エアポート快特」
+  */
+
+  var __baseTrainTypeLabelAirportRapidLimitedExpress =
+    typeof trainTypeLabel === 'function' ? trainTypeLabel : null;
+
+  trainTypeLabel = function(trainTypeUri) {
+    var tail = typeof uriTail === 'function' ? uriTail(trainTypeUri) : String(trainTypeUri || '').split(':').pop().split('.').pop();
+
+    if (tail === 'AirportRapidLimitedExpress') return 'エアポート快特';
+    if (tail === 'AirportRapidLimitedExp') return 'エアポート快特';
+    if (tail === 'AirportLimitedExpress') return 'エアポート快特';
+
+    if (__baseTrainTypeLabelAirportRapidLimitedExpress) {
+      return __baseTrainTypeLabelAirportRapidLimitedExpress(trainTypeUri);
+    }
+
+    return tail || '';
+  };
+
+  function tableTrainTypeShortLabel(type) {
+    if (type === 'エアポート快特') return 'エア快';
+    if (type === 'AirportRapidLimitedExpress') return 'エア快';
+    if (type === 'AirportRapidLimitedExp') return 'エア快';
+    if (type === 'AirportLimitedExpress') return 'エア快';
+    return type;
+  }
+
+  // 駅アイコン表／列車アイコン内の表では短縮表示
+  var __baseBuildUnifiedRowAirportRapidLimitedExpress =
+    typeof buildUnifiedRow === 'function' ? buildUnifiedRow : null;
+
+  if (__baseBuildUnifiedRowAirportRapidLimitedExpress) {
+    buildUnifiedRow = function(trainNumber, type, destination, delay, planArr, planDep, track, isPassed, runningPosition, isPass, passTime) {
+      return __baseBuildUnifiedRowAirportRapidLimitedExpress(
+        trainNumber,
+        tableTrainTypeShortLabel(type),
+        destination,
+        delay,
+        planArr,
+        planDep,
+        track,
+        isPassed,
+        runningPosition,
+        isPass,
+        passTime
+      );
+    };
+  }
+
+  var __baseBuildTrainRouteDetailTableAirportRapidLimitedExpress =
+    typeof buildTrainRouteDetailTable === 'function' ? buildTrainRouteDetailTable : null;
+
+  if (__baseBuildTrainRouteDetailTableAirportRapidLimitedExpress) {
+    buildTrainRouteDetailTable = function(train, timetable) {
+      // 表の中は必要に応じて今後種別列を出しても短縮できるよう、train.typeだけ短縮して渡す
+      var copyTrain = Object.assign({}, train);
+      copyTrain.type = tableTrainTypeShortLabel(copyTrain.type);
+      return __baseBuildTrainRouteDetailTableAirportRapidLimitedExpress(copyTrain, timetable);
+    };
+  }
+
+  // 駅時刻表行の種別も表用に短縮
+  var __baseGetStationTimetableRowsFromOdptAirportRapidLimitedExpress =
+    typeof getStationTimetableRowsFromOdpt === 'function' ? getStationTimetableRowsFromOdpt : null;
+
+  if (__baseGetStationTimetableRowsFromOdptAirportRapidLimitedExpress) {
+    getStationTimetableRowsFromOdpt = function(lineId, stationName, direction) {
+      var rows = __baseGetStationTimetableRowsFromOdptAirportRapidLimitedExpress(lineId, stationName, direction) || [];
+
+      return rows.map(function(row) {
+        var copy = Object.assign({}, row);
+        copy.type = tableTrainTypeShortLabel(copy.type);
+        return copy;
+      });
+    };
+  }
+
+  var __baseMakeLiveStationRowsAirportRapidLimitedExpress =
+    typeof makeLiveStationRows === 'function' ? makeLiveStationRows : null;
+
+  if (__baseMakeLiveStationRowsAirportRapidLimitedExpress) {
+    makeLiveStationRows = function(stationName, direction) {
+      var rows = __baseMakeLiveStationRowsAirportRapidLimitedExpress(stationName, direction) || [];
+
+      return rows.map(function(row) {
+        var copy = Object.assign({}, row);
+        copy.type = tableTrainTypeShortLabel(copy.type);
+        return copy;
+      });
+    };
+  }
+
+  // 列車アイコンの詳細ウィンドウタイトルだけは正式名称に戻す
+  var __baseShowTrainDetailAirportRapidLimitedExpress =
+    typeof showTrainDetail === 'function' ? showTrainDetail : null;
+
+  if (__baseShowTrainDetailAirportRapidLimitedExpress) {
+    showTrainDetail = function(trainArg) {
+      var trainBefore = null;
+
+      if (typeof trainArg === 'object' && trainArg !== null) {
+        trainBefore = trainArg;
+      } else if (typeof currentTrains !== 'undefined' && Array.isArray(currentTrains)) {
+        for (var i = 0; i < currentTrains.length; i++) {
+          if (currentTrains[i].id === trainArg) {
+            trainBefore = currentTrains[i];
+            break;
+          }
+        }
+      }
+
+      __baseShowTrainDetailAirportRapidLimitedExpress(trainArg);
+
+      var title = document.getElementById('modal-title');
+      if (!title || !trainBefore) return;
+
+      var formalType = trainBefore.type;
+      if (formalType === 'エア快' || formalType === 'AirportRapidLimitedExpress' || formalType === 'AirportRapidLimitedExp' || formalType === 'AirportLimitedExpress') {
+        formalType = 'エアポート快特';
+      }
+
+      if (formalType !== 'エアポート快特') return;
+
+      var fullDest =
+        trainBefore.destinationFull ||
+        trainBefore.fullDestination ||
+        trainBefore.destinationOriginal ||
+        trainBefore.destinationRaw ||
+        trainBefore.destination ||
+        '';
+
+      if (typeof toJapaneseStationName === 'function') {
+        fullDest = toJapaneseStationName(fullDest);
+      }
+
+      title.innerText = '【' + (trainBefore.trainNumber || '') + '】 ' + formalType + (fullDest ? ' ' + fullDest : '');
+    };
+  }
+
+
+  /* ===== 在線位置未取得時は「―」＋列車アイコン内の予測時刻は表示 =====
+     ・駅アイコン内の走行位置は、列車位置データが無い時刻表だけの列車なら「―」
+     ・列車アイコン内は、アイコンが存在している＝列車位置データが存在するため、
+       着予測・発予測を遅延時分込みで表示する。
+       遅延が未取得の場合だけ0分扱いで表示する。
+  */
+
+  function rpFinalHasTime(value) {
+    return value !== null && value !== undefined && value !== '' && value !== '--:--' && value !== '―';
+  }
+
+  function rpFinalDisplayTime(value) {
+    if (value === null || value === undefined || value === '--:--' || value === '―') return '―';
+    if (value === '') return '';
+    return value;
+  }
+
+  function rpFinalDisplayCell(value) {
+    if (value === null || value === undefined || value === '--:--' || value === '―') return '―';
+    if (value === '') return '';
+    return value;
+  }
+
+  function rpFinalHasDelay(delay) {
+    return delay !== null && delay !== undefined && delay !== '' && delay !== '―' && !Number.isNaN(Number(delay));
+  }
+
+  function rpFinalDelayValueOrNull(delay) {
+    return rpFinalHasDelay(delay) ? Number(delay || 0) : null;
+  }
+
+  function rpFinalDelayText(delay) {
+    if (!rpFinalHasDelay(delay)) return '―';
+    return formatDelayCode(Number(delay || 0));
+  }
+
+  function rpFinalDelayClass(delay) {
+    if (!rpFinalHasDelay(delay)) return '';
+    return getStatusClass(Number(delay || 0));
+  }
+
+  function rpFinalDestination4(value) {
+    if (value === null || value === undefined || value === '') return value;
+
+    var text = String(value);
+    if (typeof toJapaneseStationName === 'function') text = toJapaneseStationName(text);
+    if (typeof shortenStationNameForDisplay === 'function') return shortenStationNameForDisplay(text);
+
+    var chars = Array.from(text);
+    return chars.length > 4 ? chars.slice(0, 4).join('') : text;
+  }
+
+  function rpFinalPassTime(row, planDep, passTime) {
+    if (rpFinalHasTime(passTime)) return passTime;
+    if (row && rpFinalHasTime(row.passTime)) return row.passTime;
+    if (row && row.isPass && rpFinalHasTime(row.planDep)) return row.planDep;
+    if (row && row.isPass && rpFinalHasTime(row.dep)) return row.dep;
+    if (rpFinalHasTime(planDep)) return planDep;
+    return null;
+  }
+
+  function rpStationTableStopTimes(planArr, planDep, delay) {
+    var delayValue = rpFinalDelayValueOrNull(delay);
+
+    // 駅アイコン表：時刻表列車で列車位置データ未取得なら予測は「―」
+    if (delayValue === null) {
+      return {
+        arrPlan: planArr,
+        arrPred: null,
+        depPlan: planDep,
+        depPred: null
+      };
+    }
+
+    return {
+      arrPlan: planArr,
+      arrPred: rpFinalHasTime(planArr) ? addDelayToTime(planArr, delayValue) : null,
+      depPlan: planDep,
+      depPred: rpFinalHasTime(planDep) ? calcDeparturePrediction(planArr, planDep, delayValue) : null
+    };
+  }
+
+  function rpStationTablePassTimes(row, planDep, delay, passTime) {
+    var usablePassTime = rpFinalPassTime(row, planDep, passTime);
+    var delayValue = rpFinalDelayValueOrNull(delay);
+
+    if (rpFinalHasTime(usablePassTime)) {
+      return {
+        arrPlan: null,
+        arrPred: null,
+        depPlan: usablePassTime,
+        depPred: delayValue === null ? null : addDelayToTime(usablePassTime, delayValue)
+      };
+    }
+
+    return {
+      arrPlan: null,
+      arrPred: null,
+      depPlan: null,
+      depPred: null
+    };
+  }
+
+  function rpTrainDetailStopTimes(planArr, planDep, delay) {
+    // 列車アイコン内：アイコンがある時点で列車位置データありなので、遅延未取得なら0分扱い
+    var delayValue = rpFinalHasDelay(delay) ? Number(delay || 0) : 0;
+
+    return {
+      arrPlan: planArr,
+      arrPred: rpFinalHasTime(planArr) ? addDelayToTime(planArr, delayValue) : null,
+      depPlan: planDep,
+      depPred: rpFinalHasTime(planDep) ? calcDeparturePrediction(planArr, planDep, delayValue) : null
+    };
+  }
+
+  function rpTrainDetailPassTimes(row, planDep, delay, passTime) {
+    var usablePassTime = rpFinalPassTime(row, planDep, passTime);
+    var delayValue = rpFinalHasDelay(delay) ? Number(delay || 0) : 0;
+
+    if (rpFinalHasTime(usablePassTime)) {
+      return {
+        arrPlan: null,
+        arrPred: null,
+        depPlan: usablePassTime,
+        depPred: addDelayToTime(usablePassTime, delayValue)
+      };
+    }
+
+    return {
+      arrPlan: null,
+      arrPred: null,
+      depPlan: null,
+      depPred: null
+    };
+  }
+
+  function rpLiveRunningPositionForStationRow(lineId, trainNumber, fallback) {
+    var target = typeof normalizeTrainNumberForMatch === 'function'
+      ? normalizeTrainNumberForMatch(trainNumber)
+      : String(trainNumber || '');
+
+    if (!target || typeof currentTrains === 'undefined' || !Array.isArray(currentTrains)) {
+      return '―';
+    }
+
+    for (var i = 0; i < currentTrains.length; i++) {
+      var train = currentTrains[i];
+      if (train.line !== lineId) continue;
+
+      var num = typeof normalizeTrainNumberForMatch === 'function'
+        ? normalizeTrainNumberForMatch(train.trainNumber)
+        : String(train.trainNumber || '');
+
+      if (num !== target) continue;
+
+      // 列車位置データが見つかった場合のみ走行位置を表示
+      if (train.locationType === 'station' && train.atStation) {
+        return train.atStation;
+      }
+
+      if (train.locationType === 'between' && train.fromStation) {
+        return '*' + train.fromStation;
+      }
+
+      if (train.runningPosition) return train.runningPosition;
+
+      return fallback || '―';
+    }
+
+    // 始発駅をまだ出ていない等で列車位置データが無い場合
+    return '―';
+  }
+
+  var __baseGetStationTimetableRowsFromOdptRunningPositionDash =
+    typeof getStationTimetableRowsFromOdpt === 'function' ? getStationTimetableRowsFromOdpt : null;
+
+  if (__baseGetStationTimetableRowsFromOdptRunningPositionDash) {
+    getStationTimetableRowsFromOdpt = function(lineId, stationName, direction) {
+      var rows = __baseGetStationTimetableRowsFromOdptRunningPositionDash(lineId, stationName, direction) || [];
+
+      return rows.map(function(row) {
+        var copy = Object.assign({}, row);
+        copy.runningPosition = rpLiveRunningPositionForStationRow(lineId, copy.trainNumber, copy.runningPosition);
+        return copy;
+      });
+    };
+  }
+
+  var __baseMakeLiveStationRowsRunningPositionDash =
+    typeof makeLiveStationRows === 'function' ? makeLiveStationRows : null;
+
+  if (__baseMakeLiveStationRowsRunningPositionDash) {
+    makeLiveStationRows = function(stationName, direction) {
+      var rows = __baseMakeLiveStationRowsRunningPositionDash(stationName, direction) || [];
+      var lineId = typeof getCurrentSelectedLineIdForDetail === 'function' ? getCurrentSelectedLineIdForDetail() : getSelectedLineId();
+
+      return rows.map(function(row) {
+        var copy = Object.assign({}, row);
+        copy.runningPosition = rpLiveRunningPositionForStationRow(lineId, copy.trainNumber, copy.runningPosition);
+        return copy;
+      });
+    };
+  }
+
+  // 駅アイコン内の表：走行位置は未取得なら「―」、予測は遅延取得済みの時だけ表示
+  buildUnifiedRow = function(trainNumber, type, destination, delay, planArr, planDep, track, isPassed, runningPosition, isPass, passTime) {
+    var times = isPass
+      ? rpStationTablePassTimes(null, planDep, delay, passTime)
+      : rpStationTableStopTimes(planArr, planDep, delay);
+
+    var arrPredClass = isPassed ? '' : ' class="text-blue"';
+    var depPredClass = isPassed ? '' : ' class="text-blue"';
+
+    var row = '<tr>';
+    row += '<td>' + rpFinalDisplayCell(trainNumber) + '</td>';
+    row += '<td>' + rpFinalDisplayCell(typeof tableTrainTypeShortLabel === 'function' ? tableTrainTypeShortLabel(type) : type) + '</td>';
+    row += '<td>' + (destination === '' ? '' : rpFinalDisplayCell(rpFinalDestination4(destination))) + '</td>';
+    row += '<td>' + (isPass ? '通' : '停') + '</td>';
+    row += '<td class="' + rpFinalDelayClass(delay) + '">' + rpFinalDelayText(delay) + '</td>';
+    row += '<td>' + rpFinalDisplayCell(runningPosition) + '</td>';
+    row += '<td>' + rpFinalDisplayTime(times.arrPlan) + '</td>';
+    row += '<td' + arrPredClass + '>' + rpFinalDisplayTime(times.arrPred) + '</td>';
+    row += '<td>' + rpFinalDisplayTime(times.depPlan) + '</td>';
+    row += '<td' + depPredClass + '>' + rpFinalDisplayTime(times.depPred) + '</td>';
+    row += '<td>' + rpFinalDisplayCell(track) + '</td>';
+    row += '</tr>';
+
+    return row;
+  };
+
+  // 列車アイコン内の表：アイコンが存在する列車なので、予測時刻は表示
+  buildTrainRouteDetailTable = function(train, timetable) {
+    var passedIndex = -1;
+
+    for (var i = 0; i < timetable.length; i++) {
+      if (train.locationType === 'station' && timetable[i].name === train.atStation) {
+        passedIndex = i;
+      }
+      if (train.locationType === 'between' && timetable[i].name === train.fromStation) {
+        passedIndex = i;
+      }
+    }
+
+    var tableHtml = '<table class="modal-table train-detail-table">';
+    tableHtml += '<colgroup>';
+    tableHtml += '<col class="col-station">';
+    tableHtml += '<col class="col-tsutei">';
+    tableHtml += '<col class="col-status">';
+    tableHtml += '<col class="col-time">';
+    tableHtml += '<col class="col-time">';
+    tableHtml += '<col class="col-time">';
+    tableHtml += '<col class="col-time">';
+    tableHtml += '<col class="col-track">';
+    tableHtml += '</colgroup>';
+    tableHtml += '<thead><tr>';
+    tableHtml += '<th>駅名</th>';
+    tableHtml += '<th>通停</th>';
+    tableHtml += '<th>遅延(分)</th>';
+    tableHtml += '<th>着計画</th>';
+    tableHtml += '<th>着予測</th>';
+    tableHtml += '<th>発計画</th>';
+    tableHtml += '<th>発予測</th>';
+    tableHtml += '<th>番線</th>';
+    tableHtml += '</tr></thead>';
+    tableHtml += '<tbody>';
+
+    for (var j = 0; j < timetable.length; j++) {
+      var row = timetable[j];
+      if (typeof normalizePassRow === 'function') row = normalizePassRow(row);
+
+      var knownDelay = typeof getKnownDelayValueForTrainRow === 'function'
+        ? getKnownDelayValueForTrainRow(train, row, j, passedIndex)
+        : (row.delay !== undefined ? row.delay : train.delay);
+
+      var isPass = !!row.isPass;
+      var times = isPass
+        ? rpTrainDetailPassTimes(row, row.planDep, knownDelay, row.passTime)
+        : rpTrainDetailStopTimes(row.planArr, row.planDep, knownDelay);
+
+      var delayText = rpFinalDelayText(knownDelay);
+      var delayClass = rpFinalDelayClass(knownDelay);
+
+      // 通過時刻指定なしの通過駅は、番線のみ表示
+      if (isPass && !rpFinalHasTime(rpFinalPassTime(row, row.planDep, row.passTime))) {
+        knownDelay = null;
+        delayText = '―';
+        delayClass = '';
+      }
+
+      var isPassed = j <= passedIndex;
+      var arrPredClass = isPassed ? '' : ' class="text-blue"';
+      var depPredClass = isPassed ? '' : ' class="text-blue"';
+      var trClass = isPass ? ' class="pass-row"' : '';
+
+      var stationName = row.name;
+      if (typeof toJapaneseStationName === 'function') stationName = toJapaneseStationName(stationName);
+
+      tableHtml += '<tr' + trClass + '>';
+      tableHtml += '<td>' + rpFinalDisplayCell(stationName) + '</td>';
+      tableHtml += '<td>' + (isPass ? '通' : '停') + '</td>';
+      tableHtml += '<td class="' + delayClass + '">' + delayText + '</td>';
+      tableHtml += '<td>' + rpFinalDisplayTime(times.arrPlan) + '</td>';
+      tableHtml += '<td' + arrPredClass + '>' + rpFinalDisplayTime(times.arrPred) + '</td>';
+      tableHtml += '<td>' + rpFinalDisplayTime(times.depPlan) + '</td>';
+      tableHtml += '<td' + depPredClass + '>' + rpFinalDisplayTime(times.depPred) + '</td>';
+      tableHtml += '<td>' + rpFinalDisplayCell(row.track || train.track || null) + '</td>';
+      tableHtml += '</tr>';
+    }
+
+    tableHtml += '</tbody></table>';
+    return tableHtml;
+  };
+
+
+  /* ===== 遅延未取得なら列車アイコン内の予測も「―」 =====
+     000は「定時という遅延データを取得できた場合」だけ表示・計算する。
+     列車アイコン内でも、遅延時分が未取得なら着予測・発予測は「―」にする。
+  */
+
+  function ndnpHasTime(value) {
+    return value !== null && value !== undefined && value !== '' && value !== '--:--' && value !== '―';
+  }
+
+  function ndnpDisplayTime(value) {
+    if (value === null || value === undefined || value === '--:--' || value === '―') return '―';
+    if (value === '') return '';
+    return value;
+  }
+
+  function ndnpDisplayCell(value) {
+    if (value === null || value === undefined || value === '--:--' || value === '―') return '―';
+    if (value === '') return '';
+    return value;
+  }
+
+  function ndnpHasDelay(delay) {
+    return delay !== null && delay !== undefined && delay !== '' && delay !== '―' && !Number.isNaN(Number(delay));
+  }
+
+  function ndnpDelayText(delay) {
+    if (!ndnpHasDelay(delay)) return '―';
+    return formatDelayCode(Number(delay || 0));
+  }
+
+  function ndnpDelayClass(delay) {
+    if (!ndnpHasDelay(delay)) return '';
+    return getStatusClass(Number(delay || 0));
+  }
+
+  function ndnpDestination4(value) {
+    if (value === null || value === undefined || value === '') return value;
+
+    var text = String(value);
+    if (typeof toJapaneseStationName === 'function') text = toJapaneseStationName(text);
+    if (typeof shortenStationNameForDisplay === 'function') return shortenStationNameForDisplay(text);
+
+    var chars = Array.from(text);
+    return chars.length > 4 ? chars.slice(0, 4).join('') : text;
+  }
+
+  function ndnpPassTime(row, planDep, passTime) {
+    if (ndnpHasTime(passTime)) return passTime;
+    if (row && ndnpHasTime(row.passTime)) return row.passTime;
+    if (row && row.isPass && ndnpHasTime(row.planDep)) return row.planDep;
+    if (row && row.isPass && ndnpHasTime(row.dep)) return row.dep;
+    if (ndnpHasTime(planDep)) return planDep;
+    return null;
+  }
+
+  function ndnpStopTimes(planArr, planDep, delay) {
+    if (!ndnpHasDelay(delay)) {
+      return {
+        arrPlan: planArr,
+        arrPred: null,
+        depPlan: planDep,
+        depPred: null
+      };
+    }
+
+    var delayValue = Number(delay || 0);
+
+    return {
+      arrPlan: planArr,
+      arrPred: ndnpHasTime(planArr) ? addDelayToTime(planArr, delayValue) : null,
+      depPlan: planDep,
+      depPred: ndnpHasTime(planDep) ? calcDeparturePrediction(planArr, planDep, delayValue) : null
+    };
+  }
+
+  function ndnpPassTimes(row, planDep, delay, passTime) {
+    var usablePassTime = ndnpPassTime(row, planDep, passTime);
+
+    if (!ndnpHasTime(usablePassTime)) {
+      return {
+        arrPlan: null,
+        arrPred: null,
+        depPlan: null,
+        depPred: null
+      };
+    }
+
+    if (!ndnpHasDelay(delay)) {
+      return {
+        arrPlan: null,
+        arrPred: null,
+        depPlan: usablePassTime,
+        depPred: null
+      };
+    }
+
+    var delayValue = Number(delay || 0);
+
+    return {
+      arrPlan: null,
+      arrPred: null,
+      depPlan: usablePassTime,
+      depPred: addDelayToTime(usablePassTime, delayValue)
+    };
+  }
+
+  // 駅アイコン内の表
+  buildUnifiedRow = function(trainNumber, type, destination, delay, planArr, planDep, track, isPassed, runningPosition, isPass, passTime) {
+    var times = isPass
+      ? ndnpPassTimes(null, planDep, delay, passTime)
+      : ndnpStopTimes(planArr, planDep, delay);
+
+    var arrPredClass = isPassed ? '' : ' class="text-blue"';
+    var depPredClass = isPassed ? '' : ' class="text-blue"';
+
+    var row = '<tr>';
+    row += '<td>' + ndnpDisplayCell(trainNumber) + '</td>';
+    row += '<td>' + ndnpDisplayCell(typeof tableTrainTypeShortLabel === 'function' ? tableTrainTypeShortLabel(type) : type) + '</td>';
+    row += '<td>' + (destination === '' ? '' : ndnpDisplayCell(ndnpDestination4(destination))) + '</td>';
+    row += '<td>' + (isPass ? '通' : '停') + '</td>';
+    row += '<td class="' + ndnpDelayClass(delay) + '">' + ndnpDelayText(delay) + '</td>';
+    row += '<td>' + ndnpDisplayCell(runningPosition) + '</td>';
+    row += '<td>' + ndnpDisplayTime(times.arrPlan) + '</td>';
+    row += '<td' + arrPredClass + '>' + ndnpDisplayTime(times.arrPred) + '</td>';
+    row += '<td>' + ndnpDisplayTime(times.depPlan) + '</td>';
+    row += '<td' + depPredClass + '>' + ndnpDisplayTime(times.depPred) + '</td>';
+    row += '<td>' + ndnpDisplayCell(track) + '</td>';
+    row += '</tr>';
+
+    return row;
+  };
+
+  // 列車アイコン内の表：遅延未取得なら予測も「―」
+  buildTrainRouteDetailTable = function(train, timetable) {
+    var passedIndex = -1;
+
+    for (var i = 0; i < timetable.length; i++) {
+      if (train.locationType === 'station' && timetable[i].name === train.atStation) {
+        passedIndex = i;
+      }
+      if (train.locationType === 'between' && timetable[i].name === train.fromStation) {
+        passedIndex = i;
+      }
+    }
+
+    var tableHtml = '<table class="modal-table train-detail-table">';
+    tableHtml += '<colgroup>';
+    tableHtml += '<col class="col-station">';
+    tableHtml += '<col class="col-tsutei">';
+    tableHtml += '<col class="col-status">';
+    tableHtml += '<col class="col-time">';
+    tableHtml += '<col class="col-time">';
+    tableHtml += '<col class="col-time">';
+    tableHtml += '<col class="col-time">';
+    tableHtml += '<col class="col-track">';
+    tableHtml += '</colgroup>';
+    tableHtml += '<thead><tr>';
+    tableHtml += '<th>駅名</th>';
+    tableHtml += '<th>通停</th>';
+    tableHtml += '<th>遅延(分)</th>';
+    tableHtml += '<th>着計画</th>';
+    tableHtml += '<th>着予測</th>';
+    tableHtml += '<th>発計画</th>';
+    tableHtml += '<th>発予測</th>';
+    tableHtml += '<th>番線</th>';
+    tableHtml += '</tr></thead>';
+    tableHtml += '<tbody>';
+
+    for (var j = 0; j < timetable.length; j++) {
+      var row = timetable[j];
+      if (typeof normalizePassRow === 'function') row = normalizePassRow(row);
+
+      var knownDelay = typeof getKnownDelayValueForTrainRow === 'function'
+        ? getKnownDelayValueForTrainRow(train, row, j, passedIndex)
+        : (row.delay !== undefined ? row.delay : train.delay);
+
+      var isPass = !!row.isPass;
+      var times = isPass
+        ? ndnpPassTimes(row, row.planDep, knownDelay, row.passTime)
+        : ndnpStopTimes(row.planArr, row.planDep, knownDelay);
+
+      var delayText = ndnpDelayText(knownDelay);
+      var delayClass = ndnpDelayClass(knownDelay);
+
+      // 通過時刻指定なしの通過駅は、番線のみ表示
+      if (isPass && !ndnpHasTime(ndnpPassTime(row, row.planDep, row.passTime))) {
+        knownDelay = null;
+        delayText = '―';
+        delayClass = '';
+      }
+
+      var isPassed = j <= passedIndex;
+      var arrPredClass = isPassed ? '' : ' class="text-blue"';
+      var depPredClass = isPassed ? '' : ' class="text-blue"';
+      var trClass = isPass ? ' class="pass-row"' : '';
+
+      var stationName = row.name;
+      if (typeof toJapaneseStationName === 'function') stationName = toJapaneseStationName(stationName);
+
+      tableHtml += '<tr' + trClass + '>';
+      tableHtml += '<td>' + ndnpDisplayCell(stationName) + '</td>';
+      tableHtml += '<td>' + (isPass ? '通' : '停') + '</td>';
+      tableHtml += '<td class="' + delayClass + '">' + delayText + '</td>';
+      tableHtml += '<td>' + ndnpDisplayTime(times.arrPlan) + '</td>';
+      tableHtml += '<td' + arrPredClass + '>' + ndnpDisplayTime(times.arrPred) + '</td>';
+      tableHtml += '<td>' + ndnpDisplayTime(times.depPlan) + '</td>';
+      tableHtml += '<td' + depPredClass + '>' + ndnpDisplayTime(times.depPred) + '</td>';
+      tableHtml += '<td>' + ndnpDisplayCell(row.track || train.track || null) + '</td>';
+      tableHtml += '</tr>';
+    }
+
+    tableHtml += '</tbody></table>';
+    return tableHtml;
+  };
+
+
+  /* ===== 表サイズ戻し＋列車アイコン内予測ルール修正 =====
+     駅アイコン表：
+       送ってもらった元の表サイズに近い幅へ戻す。
+     列車アイコン内：
+       駅ごとの遅延履歴がある行はその遅延を使用。
+       駅ごとの遅延がない行は、列車全体の現在遅延を使用。
+       列車全体の現在遅延も未取得なら、着予測・発予測は「―」。
+  */
+
+  function compactHasTime(value) {
+    return value !== null && value !== undefined && value !== '' && value !== '--:--' && value !== '―';
+  }
+
+  function compactDisplayTime(value) {
+    if (value === null || value === undefined || value === '--:--' || value === '―') return '―';
+    if (value === '') return '';
+    return value;
+  }
+
+  function compactDisplayCell(value) {
+    if (value === null || value === undefined || value === '--:--' || value === '―') return '―';
+    if (value === '') return '';
+    return value;
+  }
+
+  function compactHasDelay(delay) {
+    return delay !== null && delay !== undefined && delay !== '' && delay !== '―' && !Number.isNaN(Number(delay));
+  }
+
+  function compactDelayText(delay) {
+    if (!compactHasDelay(delay)) return '―';
+    return formatDelayCode(Number(delay || 0));
+  }
+
+  function compactDelayClass(delay) {
+    if (!compactHasDelay(delay)) return '';
+    return getStatusClass(Number(delay || 0));
+  }
+
+  function compactDestination4(value) {
+    if (value === null || value === undefined || value === '') return value;
+
+    var text = String(value);
+    if (typeof toJapaneseStationName === 'function') text = toJapaneseStationName(text);
+    if (typeof shortenStationNameForDisplay === 'function') return shortenStationNameForDisplay(text);
+
+    var chars = Array.from(text);
+    return chars.length > 4 ? chars.slice(0, 4).join('') : text;
+  }
+
+  function compactPassTime(row, planDep, passTime) {
+    if (compactHasTime(passTime)) return passTime;
+    if (row && compactHasTime(row.passTime)) return row.passTime;
+    if (row && row.isPass && compactHasTime(row.planDep)) return row.planDep;
+    if (row && row.isPass && compactHasTime(row.dep)) return row.dep;
+    if (compactHasTime(planDep)) return planDep;
+    return null;
+  }
+
+  function compactStopTimes(planArr, planDep, delay) {
+    if (!compactHasDelay(delay)) {
+      return {
+        arrPlan: planArr,
+        arrPred: null,
+        depPlan: planDep,
+        depPred: null
+      };
+    }
+
+    var delayValue = Number(delay || 0);
+
+    return {
+      arrPlan: planArr,
+      arrPred: compactHasTime(planArr) ? addDelayToTime(planArr, delayValue) : null,
+      depPlan: planDep,
+      depPred: compactHasTime(planDep) ? calcDeparturePrediction(planArr, planDep, delayValue) : null
+    };
+  }
+
+  function compactPassTimes(row, planDep, delay, passTime) {
+    var usablePassTime = compactPassTime(row, planDep, passTime);
+
+    if (!compactHasTime(usablePassTime)) {
+      return {
+        arrPlan: null,
+        arrPred: null,
+        depPlan: null,
+        depPred: null
+      };
+    }
+
+    if (!compactHasDelay(delay)) {
+      return {
+        arrPlan: null,
+        arrPred: null,
+        depPlan: usablePassTime,
+        depPred: null
+      };
+    }
+
+    var delayValue = Number(delay || 0);
+
+    return {
+      arrPlan: null,
+      arrPred: null,
+      depPlan: usablePassTime,
+      depPred: addDelayToTime(usablePassTime, delayValue)
+    };
+  }
+
+  function compactDelayForTrainDetail(train, row, rowIndex, passedIndex) {
+    var rowDelay = null;
+
+    if (typeof getKnownDelayValueForTrainRow === 'function') {
+      rowDelay = getKnownDelayValueForTrainRow(train, row, rowIndex, passedIndex);
+    } else if (row && row.delay !== undefined) {
+      rowDelay = row.delay;
+    }
+
+    if (compactHasDelay(rowDelay)) return Number(rowDelay || 0);
+
+    // 駅ごとの履歴がない駅は、列車全体の現在遅延を使う
+    if (train && compactHasDelay(train.delay)) return Number(train.delay || 0);
+
+    // 列車全体の遅延もない場合だけ「未取得」
+    return null;
+  }
+
+  buildUnifiedHeader = function() {
+    var html = '<colgroup>';
+    html += '<col class="col-trainno">';
+    html += '<col class="col-type">';
+    html += '<col class="col-dest">';
+    html += '<col class="col-tsutei">';
+    html += '<col class="col-status">';
+    html += '<col class="col-location">';
+    html += '<col class="col-time">';
+    html += '<col class="col-time">';
+    html += '<col class="col-time">';
+    html += '<col class="col-time">';
+    html += '<col class="col-track">';
+    html += '</colgroup>';
+
+    html += '<thead><tr>';
+    html += '<th>列番</th>';
+    html += '<th>種別</th>';
+    html += '<th>行先</th>';
+    html += '<th>通停</th>';
+    html += '<th>遅延(分)</th>';
+    html += '<th>走行位置</th>';
+    html += '<th>着計画</th>';
+    html += '<th>着予測</th>';
+    html += '<th>発計画</th>';
+    html += '<th>発予測</th>';
+    html += '<th>番線</th>';
+    html += '</tr></thead>';
+    return html;
+  };
+
+  // 駅アイコン内の表：時刻表上だけの列車は、遅延未取得なら予測は「―」
+  buildUnifiedRow = function(trainNumber, type, destination, delay, planArr, planDep, track, isPassed, runningPosition, isPass, passTime) {
+    var times = isPass
+      ? compactPassTimes(null, planDep, delay, passTime)
+      : compactStopTimes(planArr, planDep, delay);
+
+    var arrPredClass = isPassed ? '' : ' class="text-blue"';
+    var depPredClass = isPassed ? '' : ' class="text-blue"';
+
+    var row = '<tr>';
+    row += '<td>' + compactDisplayCell(trainNumber) + '</td>';
+    row += '<td>' + compactDisplayCell(typeof tableTrainTypeShortLabel === 'function' ? tableTrainTypeShortLabel(type) : type) + '</td>';
+    row += '<td>' + (destination === '' ? '' : compactDisplayCell(compactDestination4(destination))) + '</td>';
+    row += '<td>' + (isPass ? '通' : '停') + '</td>';
+    row += '<td class="' + compactDelayClass(delay) + '">' + compactDelayText(delay) + '</td>';
+    row += '<td>' + compactDisplayCell(runningPosition) + '</td>';
+    row += '<td>' + compactDisplayTime(times.arrPlan) + '</td>';
+    row += '<td' + arrPredClass + '>' + compactDisplayTime(times.arrPred) + '</td>';
+    row += '<td>' + compactDisplayTime(times.depPlan) + '</td>';
+    row += '<td' + depPredClass + '>' + compactDisplayTime(times.depPred) + '</td>';
+    row += '<td>' + compactDisplayCell(track) + '</td>';
+    row += '</tr>';
+
+    return row;
+  };
+
+  // 列車アイコン内の表：行別遅延がなければ列車全体の現在遅延で予測する
+  buildTrainRouteDetailTable = function(train, timetable) {
+    var passedIndex = -1;
+
+    for (var i = 0; i < timetable.length; i++) {
+      if (train.locationType === 'station' && timetable[i].name === train.atStation) {
+        passedIndex = i;
+      }
+      if (train.locationType === 'between' && timetable[i].name === train.fromStation) {
+        passedIndex = i;
+      }
+    }
+
+    var tableHtml = '<table class="modal-table train-detail-table">';
+    tableHtml += '<colgroup>';
+    tableHtml += '<col class="col-station">';
+    tableHtml += '<col class="col-tsutei">';
+    tableHtml += '<col class="col-status">';
+    tableHtml += '<col class="col-time">';
+    tableHtml += '<col class="col-time">';
+    tableHtml += '<col class="col-time">';
+    tableHtml += '<col class="col-time">';
+    tableHtml += '<col class="col-track">';
+    tableHtml += '</colgroup>';
+    tableHtml += '<thead><tr>';
+    tableHtml += '<th>駅名</th>';
+    tableHtml += '<th>通停</th>';
+    tableHtml += '<th>遅延(分)</th>';
+    tableHtml += '<th>着計画</th>';
+    tableHtml += '<th>着予測</th>';
+    tableHtml += '<th>発計画</th>';
+    tableHtml += '<th>発予測</th>';
+    tableHtml += '<th>番線</th>';
+    tableHtml += '</tr></thead>';
+    tableHtml += '<tbody>';
+
+    for (var j = 0; j < timetable.length; j++) {
+      var row = timetable[j];
+      if (typeof normalizePassRow === 'function') row = normalizePassRow(row);
+
+      var knownDelay = compactDelayForTrainDetail(train, row, j, passedIndex);
+
+      var isPass = !!row.isPass;
+      var times = isPass
+        ? compactPassTimes(row, row.planDep, knownDelay, row.passTime)
+        : compactStopTimes(row.planArr, row.planDep, knownDelay);
+
+      var delayText = compactDelayText(knownDelay);
+      var delayClass = compactDelayClass(knownDelay);
+
+      // 通過時刻指定なしの通過駅は、番線のみ表示
+      if (isPass && !compactHasTime(compactPassTime(row, row.planDep, row.passTime))) {
+        knownDelay = null;
+        delayText = '―';
+        delayClass = '';
+      }
+
+      var isPassed = j <= passedIndex;
+      var arrPredClass = isPassed ? '' : ' class="text-blue"';
+      var depPredClass = isPassed ? '' : ' class="text-blue"';
+      var trClass = isPass ? ' class="pass-row"' : '';
+
+      var stationName = row.name;
+      if (typeof toJapaneseStationName === 'function') stationName = toJapaneseStationName(stationName);
+
+      tableHtml += '<tr' + trClass + '>';
+      tableHtml += '<td>' + compactDisplayCell(stationName) + '</td>';
+      tableHtml += '<td>' + (isPass ? '通' : '停') + '</td>';
+      tableHtml += '<td class="' + delayClass + '">' + delayText + '</td>';
+      tableHtml += '<td>' + compactDisplayTime(times.arrPlan) + '</td>';
+      tableHtml += '<td' + arrPredClass + '>' + compactDisplayTime(times.arrPred) + '</td>';
+      tableHtml += '<td>' + compactDisplayTime(times.depPlan) + '</td>';
+      tableHtml += '<td' + depPredClass + '>' + compactDisplayTime(times.depPred) + '</td>';
+      tableHtml += '<td>' + compactDisplayCell(row.track || train.track || null) + '</td>';
+      tableHtml += '</tr>';
+    }
+
+    tableHtml += '</tbody></table>';
+    return tableHtml;
+  };
+
+
+  /* ===== 実着・実発／予測時刻の表示ルール修正 =====
+     ① すでに到着している場合：
+        着予測欄に、実際に到着した時刻を黒文字で表示
+     ② すでに発車している場合：
+        発予測欄に、実際に発車した時刻を黒文字で表示
+     ③ まだ到着していない場合：
+        着予測欄に、着計画＋遅延を青文字で表示
+     ④ まだ発車していない場合：
+        発予測欄に、以下の式で算出した時刻を青文字で表示
+
+        着予測 = 着計画 + 遅延
+        発予測 = (発計画 - 着計画) >= 遅延 なら 発計画
+               = (発計画 - 着計画) <  遅延 なら 着予測 + 1分
+
+     通過駅：
+       通過時刻あり → 着計画・着予測は「―」、発計画・発予測を表示
+       通過時刻なし → 着計画・着予測・発計画・発予測を「―」
+  */
+
+  function apHasTime(value) {
+    return value !== null && value !== undefined && value !== '' && value !== '--:--' && value !== '―';
+  }
+
+  function apDisplayTime(value) {
+    if (value === null || value === undefined || value === '--:--' || value === '―') return '―';
+    if (value === '') return '';
+    return value;
+  }
+
+  function apDisplayCell(value) {
+    if (value === null || value === undefined || value === '--:--' || value === '―') return '―';
+    if (value === '') return '';
+    return value;
+  }
+
+  function apHasDelay(delay) {
+    return delay !== null && delay !== undefined && delay !== '' && delay !== '―' && !Number.isNaN(Number(delay));
+  }
+
+  function apDelayText(delay) {
+    if (!apHasDelay(delay)) return '―';
+    return formatDelayCode(Number(delay || 0));
+  }
+
+  function apDelayClass(delay) {
+    if (!apHasDelay(delay)) return '';
+    return getStatusClass(Number(delay || 0));
+  }
+
+  function apDestination4(value) {
+    if (value === null || value === undefined || value === '') return value;
+
+    var text = String(value);
+    if (typeof toJapaneseStationName === 'function') text = toJapaneseStationName(text);
+    if (typeof shortenStationNameForDisplay === 'function') return shortenStationNameForDisplay(text);
+
+    var chars = Array.from(text);
+    return chars.length > 4 ? chars.slice(0, 4).join('') : text;
+  }
+
+  function apPassTime(row, planDep, passTime) {
+    if (apHasTime(passTime)) return passTime;
+    if (row && apHasTime(row.passTime)) return row.passTime;
+    if (row && row.isPass && apHasTime(row.planDep)) return row.planDep;
+    if (row && row.isPass && apHasTime(row.dep)) return row.dep;
+    if (apHasTime(planDep)) return planDep;
+    return null;
+  }
+
+  function apStopTimes(planArr, planDep, delay) {
+    if (!apHasDelay(delay)) {
+      return {
+        arrPlan: planArr,
+        arrValue: null,
+        depPlan: planDep,
+        depValue: null
+      };
+    }
+
+    var delayValue = Number(delay || 0);
+    var arrValue = apHasTime(planArr) ? addDelayToTime(planArr, delayValue) : null;
+    var depValue = apHasTime(planDep) ? calcDeparturePrediction(planArr, planDep, delayValue) : null;
+
+    return {
+      arrPlan: planArr,
+      arrValue: arrValue,
+      depPlan: planDep,
+      depValue: depValue
+    };
+  }
+
+  function apPassTimes(row, planDep, delay, passTime) {
+    var usablePassTime = apPassTime(row, planDep, passTime);
+
+    if (!apHasTime(usablePassTime)) {
+      return {
+        arrPlan: null,
+        arrValue: null,
+        depPlan: null,
+        depValue: null
+      };
+    }
+
+    if (!apHasDelay(delay)) {
+      return {
+        arrPlan: null,
+        arrValue: null,
+        depPlan: usablePassTime,
+        depValue: null
+      };
+    }
+
+    var delayValue = Number(delay || 0);
+
+    return {
+      arrPlan: null,
+      arrValue: null,
+      depPlan: usablePassTime,
+      depValue: addDelayToTime(usablePassTime, delayValue)
+    };
+  }
+
+  function apDelayForTrainDetail(train, row, rowIndex, passedIndex) {
+    var rowDelay = null;
+
+    if (typeof getKnownDelayValueForTrainRow === 'function') {
+      rowDelay = getKnownDelayValueForTrainRow(train, row, rowIndex, passedIndex);
+    } else if (row && row.delay !== undefined) {
+      rowDelay = row.delay;
+    }
+
+    if (apHasDelay(rowDelay)) return Number(rowDelay || 0);
+
+    if (train && apHasDelay(train.delay)) return Number(train.delay || 0);
+
+    return null;
+  }
+
+  function apArrivalDepartedState(train, row, rowIndex, passedIndex) {
+    var arrived = false;
+    var departed = false;
+
+    if (passedIndex >= 0) {
+      if (rowIndex < passedIndex) {
+        arrived = true;
+        departed = true;
+      } else if (rowIndex === passedIndex) {
+        if (train.locationType === 'station' && row.name === train.atStation) {
+          arrived = true;
+          departed = false;
+        } else {
+          arrived = true;
+          departed = true;
+        }
+      }
+    }
+
+    return {
+      arrived: arrived,
+      departed: departed
+    };
+  }
+
+  buildUnifiedHeader = function() {
+    var html = '<colgroup>';
+    html += '<col class="col-trainno">';
+    html += '<col class="col-type">';
+    html += '<col class="col-dest">';
+    html += '<col class="col-tsutei">';
+    html += '<col class="col-status">';
+    html += '<col class="col-location">';
+    html += '<col class="col-time">';
+    html += '<col class="col-time">';
+    html += '<col class="col-time">';
+    html += '<col class="col-time">';
+    html += '<col class="col-track">';
+    html += '</colgroup>';
+
+    html += '<thead><tr>';
+    html += '<th>列番</th>';
+    html += '<th>種別</th>';
+    html += '<th>行先</th>';
+    html += '<th>通停</th>';
+    html += '<th>遅延(分)</th>';
+    html += '<th>走行位置</th>';
+    html += '<th>着計画</th>';
+    html += '<th>着予測</th>';
+    html += '<th>発計画</th>';
+    html += '<th>発予測</th>';
+    html += '<th>番線</th>';
+    html += '</tr></thead>';
+    return html;
+  };
+
+  // 駅アイコン内の表：基本的にこれから発車する列車一覧なので、予測は青文字。
+  // 遅延未取得なら着予測・発予測は「―」。
+  buildUnifiedRow = function(trainNumber, type, destination, delay, planArr, planDep, track, isPassed, runningPosition, isPass, passTime) {
+    var times = isPass
+      ? apPassTimes(null, planDep, delay, passTime)
+      : apStopTimes(planArr, planDep, delay);
+
+    var arrPredClass = ' class="text-blue"';
+    var depPredClass = ' class="text-blue"';
+
+    if (!apHasTime(times.arrValue)) arrPredClass = '';
+    if (!apHasTime(times.depValue)) depPredClass = '';
+
+    var row = '<tr>';
+    row += '<td>' + apDisplayCell(trainNumber) + '</td>';
+    row += '<td>' + apDisplayCell(typeof tableTrainTypeShortLabel === 'function' ? tableTrainTypeShortLabel(type) : type) + '</td>';
+    row += '<td>' + (destination === '' ? '' : apDisplayCell(apDestination4(destination))) + '</td>';
+    row += '<td>' + (isPass ? '通' : '停') + '</td>';
+    row += '<td class="' + apDelayClass(delay) + '">' + apDelayText(delay) + '</td>';
+    row += '<td>' + apDisplayCell(runningPosition) + '</td>';
+    row += '<td>' + apDisplayTime(times.arrPlan) + '</td>';
+    row += '<td' + arrPredClass + '>' + apDisplayTime(times.arrValue) + '</td>';
+    row += '<td>' + apDisplayTime(times.depPlan) + '</td>';
+    row += '<td' + depPredClass + '>' + apDisplayTime(times.depValue) + '</td>';
+    row += '<td>' + apDisplayCell(track) + '</td>';
+    row += '</tr>';
+
+    return row;
+  };
+
+  // 列車アイコン内の表：到着済み・発車済みは黒、未到着・未発車は青。
+  buildTrainRouteDetailTable = function(train, timetable) {
+    var passedIndex = -1;
+
+    for (var i = 0; i < timetable.length; i++) {
+      if (train.locationType === 'station' && timetable[i].name === train.atStation) {
+        passedIndex = i;
+      }
+      if (train.locationType === 'between' && timetable[i].name === train.fromStation) {
+        passedIndex = i;
+      }
+    }
+
+    var tableHtml = '<table class="modal-table train-detail-table">';
+    tableHtml += '<colgroup>';
+    tableHtml += '<col class="col-station">';
+    tableHtml += '<col class="col-tsutei">';
+    tableHtml += '<col class="col-status">';
+    tableHtml += '<col class="col-time">';
+    tableHtml += '<col class="col-time">';
+    tableHtml += '<col class="col-time">';
+    tableHtml += '<col class="col-time">';
+    tableHtml += '<col class="col-track">';
+    tableHtml += '</colgroup>';
+    tableHtml += '<thead><tr>';
+    tableHtml += '<th>駅名</th>';
+    tableHtml += '<th>通停</th>';
+    tableHtml += '<th>遅延(分)</th>';
+    tableHtml += '<th>着計画</th>';
+    tableHtml += '<th>着予測</th>';
+    tableHtml += '<th>発計画</th>';
+    tableHtml += '<th>発予測</th>';
+    tableHtml += '<th>番線</th>';
+    tableHtml += '</tr></thead>';
+    tableHtml += '<tbody>';
+
+    for (var j = 0; j < timetable.length; j++) {
+      var row = timetable[j];
+      if (typeof normalizePassRow === 'function') row = normalizePassRow(row);
+
+      var knownDelay = apDelayForTrainDetail(train, row, j, passedIndex);
+      var state = apArrivalDepartedState(train, row, j, passedIndex);
+
+      var isPass = !!row.isPass;
+      var times = isPass
+        ? apPassTimes(row, row.planDep, knownDelay, row.passTime)
+        : apStopTimes(row.planArr, row.planDep, knownDelay);
+
+      var delayText = apDelayText(knownDelay);
+      var delayClass = apDelayClass(knownDelay);
+
+      if (isPass && !apHasTime(apPassTime(row, row.planDep, row.passTime))) {
+        knownDelay = null;
+        delayText = '―';
+        delayClass = '';
+      }
+
+      var arrPredClass = '';
+      var depPredClass = '';
+
+      if (apHasTime(times.arrValue) && !state.arrived) {
+        arrPredClass = ' class="text-blue"';
+      }
+
+      if (apHasTime(times.depValue) && !state.departed) {
+        depPredClass = ' class="text-blue"';
+      }
+
+      // 通過駅は発側だけ判定する。通過済みなら黒、未通過なら青。
+      if (isPass && apHasTime(times.depValue)) {
+        depPredClass = state.departed ? '' : ' class="text-blue"';
+      }
+
+      var trClass = isPass ? ' class="pass-row"' : '';
+
+      var stationName = row.name;
+      if (typeof toJapaneseStationName === 'function') stationName = toJapaneseStationName(stationName);
+
+      tableHtml += '<tr' + trClass + '>';
+      tableHtml += '<td>' + apDisplayCell(stationName) + '</td>';
+      tableHtml += '<td>' + (isPass ? '通' : '停') + '</td>';
+      tableHtml += '<td class="' + delayClass + '">' + delayText + '</td>';
+      tableHtml += '<td>' + apDisplayTime(times.arrPlan) + '</td>';
+      tableHtml += '<td' + arrPredClass + '>' + apDisplayTime(times.arrValue) + '</td>';
+      tableHtml += '<td>' + apDisplayTime(times.depPlan) + '</td>';
+      tableHtml += '<td' + depPredClass + '>' + apDisplayTime(times.depValue) + '</td>';
+      tableHtml += '<td>' + apDisplayCell(row.track || train.track || null) + '</td>';
+      tableHtml += '</tr>';
+    }
+
+    tableHtml += '</tbody></table>';
+    return tableHtml;
+  };
+
+
+  /* ===== 遅延表示ルール修正 =====
+     駅アイコン内：
+       「遅延」は、その列車の最新の遅延時分を表示する。
+       列車位置データがまだ無い場合は「―」。
+     列車アイコン内：
+       「遅延」は、その駅を発車した時点での遅延時分を表示する。
+       まだ発車していない駅は「―」。
+       現在停車中の駅も、まだ発車していないので「―」。
+  */
+
+  function drHasTime(value) {
+    return value !== null && value !== undefined && value !== '' && value !== '--:--' && value !== '―';
+  }
+
+  function drDisplayTime(value) {
+    if (value === null || value === undefined || value === '--:--' || value === '―') return '―';
+    if (value === '') return '';
+    return value;
+  }
+
+  function drDisplayCell(value) {
+    if (value === null || value === undefined || value === '--:--' || value === '―') return '―';
+    if (value === '') return '';
+    return value;
+  }
+
+  function drHasDelay(delay) {
+    return delay !== null && delay !== undefined && delay !== '' && delay !== '―' && !Number.isNaN(Number(delay));
+  }
+
+  function drDelayText(delay) {
+    if (!drHasDelay(delay)) return '―';
+    return formatDelayCode(Number(delay || 0));
+  }
+
+  function drDelayClass(delay) {
+    if (!drHasDelay(delay)) return '';
+    return getStatusClass(Number(delay || 0));
+  }
+
+  function drDestination4(value) {
+    if (value === null || value === undefined || value === '') return value;
+
+    var text = String(value);
+    if (typeof toJapaneseStationName === 'function') text = toJapaneseStationName(text);
+    if (typeof shortenStationNameForDisplay === 'function') return shortenStationNameForDisplay(text);
+
+    var chars = Array.from(text);
+    return chars.length > 4 ? chars.slice(0, 4).join('') : text;
+  }
+
+  function drPassTime(row, planDep, passTime) {
+    if (drHasTime(passTime)) return passTime;
+    if (row && drHasTime(row.passTime)) return row.passTime;
+    if (row && row.isPass && drHasTime(row.planDep)) return row.planDep;
+    if (row && row.isPass && drHasTime(row.dep)) return row.dep;
+    if (drHasTime(planDep)) return planDep;
+    return null;
+  }
+
+  function drStopTimes(planArr, planDep, delay) {
+    if (!drHasDelay(delay)) {
+      return {
+        arrPlan: planArr,
+        arrValue: null,
+        depPlan: planDep,
+        depValue: null
+      };
+    }
+
+    var delayValue = Number(delay || 0);
+
+    return {
+      arrPlan: planArr,
+      arrValue: drHasTime(planArr) ? addDelayToTime(planArr, delayValue) : null,
+      depPlan: planDep,
+      depValue: drHasTime(planDep) ? calcDeparturePrediction(planArr, planDep, delayValue) : null
+    };
+  }
+
+  function drPassTimes(row, planDep, delay, passTime) {
+    var usablePassTime = drPassTime(row, planDep, passTime);
+
+    if (!drHasTime(usablePassTime)) {
+      return {
+        arrPlan: null,
+        arrValue: null,
+        depPlan: null,
+        depValue: null
+      };
+    }
+
+    if (!drHasDelay(delay)) {
+      return {
+        arrPlan: null,
+        arrValue: null,
+        depPlan: usablePassTime,
+        depValue: null
+      };
+    }
+
+    var delayValue = Number(delay || 0);
+
+    return {
+      arrPlan: null,
+      arrValue: null,
+      depPlan: usablePassTime,
+      depValue: addDelayToTime(usablePassTime, delayValue)
+    };
+  }
+
+  function drTrainPassedState(train, row, rowIndex, passedIndex) {
+    var arrived = false;
+    var departed = false;
+
+    if (passedIndex >= 0) {
+      if (rowIndex < passedIndex) {
+        arrived = true;
+        departed = true;
+      } else if (rowIndex === passedIndex) {
+        if (train.locationType === 'station' && row.name === train.atStation) {
+          arrived = true;
+          departed = false;
+        } else {
+          arrived = true;
+          departed = true;
+        }
+      }
+    }
+
+    return {
+      arrived: arrived,
+      departed: departed
+    };
+  }
+
+  function drLatestDelayForStationTable(lineId, trainNumber) {
+    var target = typeof normalizeTrainNumberForMatch === 'function'
+      ? normalizeTrainNumberForMatch(trainNumber)
+      : String(trainNumber || '');
+
+    if (!target || typeof currentTrains === 'undefined' || !Array.isArray(currentTrains)) return null;
+
+    for (var i = 0; i < currentTrains.length; i++) {
+      var train = currentTrains[i];
+      if (train.line !== lineId) continue;
+
+      var number = typeof normalizeTrainNumberForMatch === 'function'
+        ? normalizeTrainNumberForMatch(train.trainNumber)
+        : String(train.trainNumber || '');
+
+      if (number !== target) continue;
+
+      // 最新の列車位置データに遅延がある場合だけ表示。000もここで初めて000になる。
+      if (drHasDelay(train.delay)) return Number(train.delay || 0);
+      return null;
+    }
+
+    return null;
+  }
+
+  function drRunningPositionForStationTable(lineId, trainNumber, fallback) {
+    var target = typeof normalizeTrainNumberForMatch === 'function'
+      ? normalizeTrainNumberForMatch(trainNumber)
+      : String(trainNumber || '');
+
+    if (!target || typeof currentTrains === 'undefined' || !Array.isArray(currentTrains)) return '―';
+
+    for (var i = 0; i < currentTrains.length; i++) {
+      var train = currentTrains[i];
+      if (train.line !== lineId) continue;
+
+      var number = typeof normalizeTrainNumberForMatch === 'function'
+        ? normalizeTrainNumberForMatch(train.trainNumber)
+        : String(train.trainNumber || '');
+
+      if (number !== target) continue;
+
+      if (train.locationType === 'station' && train.atStation) return train.atStation;
+      if (train.locationType === 'between' && train.fromStation) return '*' + train.fromStation;
+      if (train.runningPosition) return train.runningPosition;
+      return fallback || '―';
+    }
+
+    return '―';
+  }
+
+  var __baseGetStationTimetableRowsFromOdptDelayRules =
+    typeof getStationTimetableRowsFromOdpt === 'function' ? getStationTimetableRowsFromOdpt : null;
+
+  if (__baseGetStationTimetableRowsFromOdptDelayRules) {
+    getStationTimetableRowsFromOdpt = function(lineId, stationName, direction) {
+      var rows = __baseGetStationTimetableRowsFromOdptDelayRules(lineId, stationName, direction) || [];
+
+      return rows.map(function(row) {
+        var copy = Object.assign({}, row);
+        copy.delay = drLatestDelayForStationTable(lineId, copy.trainNumber);
+        copy.runningPosition = drRunningPositionForStationTable(lineId, copy.trainNumber, copy.runningPosition);
+        return copy;
+      });
+    };
+  }
+
+  var __baseMakeLiveStationRowsDelayRules =
+    typeof makeLiveStationRows === 'function' ? makeLiveStationRows : null;
+
+  if (__baseMakeLiveStationRowsDelayRules) {
+    makeLiveStationRows = function(stationName, direction) {
+      var rows = __baseMakeLiveStationRowsDelayRules(stationName, direction) || [];
+      var lineId = typeof getCurrentSelectedLineIdForDetail === 'function' ? getCurrentSelectedLineIdForDetail() : getSelectedLineId();
+
+      return rows.map(function(row) {
+        var copy = Object.assign({}, row);
+        copy.delay = drLatestDelayForStationTable(lineId, copy.trainNumber);
+        copy.runningPosition = drRunningPositionForStationTable(lineId, copy.trainNumber, copy.runningPosition);
+        return copy;
+      });
+    };
+  }
+
+  function drDelayForTrainDetailAtDepartedStation(train, row, rowIndex, passedIndex) {
+    var state = drTrainPassedState(train, row, rowIndex, passedIndex);
+
+    // まだ発車していない駅は遅延「―」
+    if (!state.departed) return null;
+
+    // 発車済みの駅だけ、その駅発車時点の遅延履歴を探す
+    var rowDelay = null;
+
+    if (row && drHasDelay(row.delay)) {
+      rowDelay = Number(row.delay || 0);
+    }
+
+    if (!drHasDelay(rowDelay) && typeof getLoggedDelayForTrainAtStation === 'function') {
+      var logged = getLoggedDelayForTrainAtStation(train, row.name);
+      if (drHasDelay(logged)) rowDelay = Number(logged || 0);
+    }
+
+    if (!drHasDelay(rowDelay) && typeof getKnownDelayValueForTrainRow === 'function') {
+      var known = getKnownDelayValueForTrainRow(train, row, rowIndex, passedIndex);
+      if (drHasDelay(known)) rowDelay = Number(known || 0);
+    }
+
+    // すでに発車しているが駅別履歴が無い場合は、現時点の遅延を履歴の代用として表示
+    // 今後の蓄積で駅別履歴が取れたらそちらが優先される
+    if (!drHasDelay(rowDelay) && train && drHasDelay(train.delay)) {
+      rowDelay = Number(train.delay || 0);
+    }
+
+    return drHasDelay(rowDelay) ? Number(rowDelay || 0) : null;
+  }
+
+  buildUnifiedHeader = function() {
+    var html = '<colgroup>';
+    html += '<col class="col-trainno">';
+    html += '<col class="col-type">';
+    html += '<col class="col-dest">';
+    html += '<col class="col-tsutei">';
+    html += '<col class="col-status">';
+    html += '<col class="col-location">';
+    html += '<col class="col-time">';
+    html += '<col class="col-time">';
+    html += '<col class="col-time">';
+    html += '<col class="col-time">';
+    html += '<col class="col-track">';
+    html += '</colgroup>';
+
+    html += '<thead><tr>';
+    html += '<th>列番</th>';
+    html += '<th>種別</th>';
+    html += '<th>行先</th>';
+    html += '<th>通停</th>';
+    html += '<th>遅延(分)</th>';
+    html += '<th>走行位置</th>';
+    html += '<th>着計画</th>';
+    html += '<th>着予測</th>';
+    html += '<th>発計画</th>';
+    html += '<th>発予測</th>';
+    html += '<th>番線</th>';
+    html += '</tr></thead>';
+    return html;
+  };
+
+  // 駅アイコン内：遅延は最新遅延
+  buildUnifiedRow = function(trainNumber, type, destination, delay, planArr, planDep, track, isPassed, runningPosition, isPass, passTime) {
+    var times = isPass
+      ? drPassTimes(null, planDep, delay, passTime)
+      : drStopTimes(planArr, planDep, delay);
+
+    var arrPredClass = drHasTime(times.arrValue) ? ' class="text-blue"' : '';
+    var depPredClass = drHasTime(times.depValue) ? ' class="text-blue"' : '';
+
+    var row = '<tr>';
+    row += '<td>' + drDisplayCell(trainNumber) + '</td>';
+    row += '<td>' + drDisplayCell(typeof tableTrainTypeShortLabel === 'function' ? tableTrainTypeShortLabel(type) : type) + '</td>';
+    row += '<td>' + (destination === '' ? '' : drDisplayCell(drDestination4(destination))) + '</td>';
+    row += '<td>' + (isPass ? '通' : '停') + '</td>';
+    row += '<td class="' + drDelayClass(delay) + '">' + drDelayText(delay) + '</td>';
+    row += '<td>' + drDisplayCell(runningPosition) + '</td>';
+    row += '<td>' + drDisplayTime(times.arrPlan) + '</td>';
+    row += '<td' + arrPredClass + '>' + drDisplayTime(times.arrValue) + '</td>';
+    row += '<td>' + drDisplayTime(times.depPlan) + '</td>';
+    row += '<td' + depPredClass + '>' + drDisplayTime(times.depValue) + '</td>';
+    row += '<td>' + drDisplayCell(track) + '</td>';
+    row += '</tr>';
+
+    return row;
+  };
+
+  // 列車アイコン内：遅延はその駅発車時点。未発車駅は「―」。
+  buildTrainRouteDetailTable = function(train, timetable) {
+    var passedIndex = -1;
+
+    for (var i = 0; i < timetable.length; i++) {
+      if (train.locationType === 'station' && timetable[i].name === train.atStation) {
+        passedIndex = i;
+      }
+      if (train.locationType === 'between' && timetable[i].name === train.fromStation) {
+        passedIndex = i;
+      }
+    }
+
+    var tableHtml = '<table class="modal-table train-detail-table">';
+    tableHtml += '<colgroup>';
+    tableHtml += '<col class="col-station">';
+    tableHtml += '<col class="col-tsutei">';
+    tableHtml += '<col class="col-status">';
+    tableHtml += '<col class="col-time">';
+    tableHtml += '<col class="col-time">';
+    tableHtml += '<col class="col-time">';
+    tableHtml += '<col class="col-time">';
+    tableHtml += '<col class="col-track">';
+    tableHtml += '</colgroup>';
+    tableHtml += '<thead><tr>';
+    tableHtml += '<th>駅名</th>';
+    tableHtml += '<th>通停</th>';
+    tableHtml += '<th>遅延(分)</th>';
+    tableHtml += '<th>着計画</th>';
+    tableHtml += '<th>着予測</th>';
+    tableHtml += '<th>発計画</th>';
+    tableHtml += '<th>発予測</th>';
+    tableHtml += '<th>番線</th>';
+    tableHtml += '</tr></thead>';
+    tableHtml += '<tbody>';
+
+    for (var j = 0; j < timetable.length; j++) {
+      var row = timetable[j];
+      if (typeof normalizePassRow === 'function') row = normalizePassRow(row);
+
+      var state = drTrainPassedState(train, row, j, passedIndex);
+
+      // 表示用の遅延欄：その駅発車時点。未発車なら null。
+      var departedDelay = drDelayForTrainDetailAtDepartedStation(train, row, j, passedIndex);
+
+      // 予測用の遅延：未発車駅では現在遅延を使う。発車済み駅ではその駅発車時点の遅延を使う。
+      var predictionDelay = drHasDelay(departedDelay)
+        ? departedDelay
+        : (train && drHasDelay(train.delay) ? Number(train.delay || 0) : null);
+
+      var isPass = !!row.isPass;
+      var times = isPass
+        ? drPassTimes(row, row.planDep, predictionDelay, row.passTime)
+        : drStopTimes(row.planArr, row.planDep, predictionDelay);
+
+      var delayText = drDelayText(departedDelay);
+      var delayClass = drDelayClass(departedDelay);
+
+      if (isPass && !drHasTime(drPassTime(row, row.planDep, row.passTime))) {
+        departedDelay = null;
+        predictionDelay = null;
+        delayText = '―';
+        delayClass = '';
+      }
+
+      var arrPredClass = '';
+      var depPredClass = '';
+
+      if (drHasTime(times.arrValue) && !state.arrived) {
+        arrPredClass = ' class="text-blue"';
+      }
+
+      if (drHasTime(times.depValue) && !state.departed) {
+        depPredClass = ' class="text-blue"';
+      }
+
+      if (isPass && drHasTime(times.depValue)) {
+        depPredClass = state.departed ? '' : ' class="text-blue"';
+      }
+
+      var trClass = isPass ? ' class="pass-row"' : '';
+
+      var stationName = row.name;
+      if (typeof toJapaneseStationName === 'function') stationName = toJapaneseStationName(stationName);
+
+      tableHtml += '<tr' + trClass + '>';
+      tableHtml += '<td>' + drDisplayCell(stationName) + '</td>';
+      tableHtml += '<td>' + (isPass ? '通' : '停') + '</td>';
+      tableHtml += '<td class="' + delayClass + '">' + delayText + '</td>';
+      tableHtml += '<td>' + drDisplayTime(times.arrPlan) + '</td>';
+      tableHtml += '<td' + arrPredClass + '>' + drDisplayTime(times.arrValue) + '</td>';
+      tableHtml += '<td>' + drDisplayTime(times.depPlan) + '</td>';
+      tableHtml += '<td' + depPredClass + '>' + drDisplayTime(times.depValue) + '</td>';
+      tableHtml += '<td>' + drDisplayCell(row.track || train.track || null) + '</td>';
+      tableHtml += '</tr>';
+    }
+
+    tableHtml += '</tbody></table>';
+    return tableHtml;
+  };
+
+
+  /* ===== 駅アイコン表：運休列車を非表示 =====
+     運休と分かる列車は、駅アイコン内の表には出さない。
+     StationTimetable / TrainTimetable / Train のどこかに
+     運休・取消・cancel 系の情報があれば除外対象にする。
+  */
+
+  function cancelFinalValueLooksCancelled(value) {
+    if (value === true) return true;
+    if (value === false || value === null || value === undefined) return false;
+
+    var text = String(value).toLowerCase();
+
+    return (
+      text.indexOf('運休') >= 0 ||
+      text.indexOf('休止') >= 0 ||
+      text.indexOf('取消') >= 0 ||
+      text.indexOf('取り消し') >= 0 ||
+      text.indexOf('キャンセル') >= 0 ||
+      text.indexOf('cancel') >= 0 ||
+      text.indexOf('canceled') >= 0 ||
+      text.indexOf('cancelled') >= 0 ||
+      text.indexOf('suspend') >= 0 ||
+      text.indexOf('suspended') >= 0
+    );
+  }
+
+  function cancelFinalObjectLooksCancelled(obj) {
+    if (!obj) return false;
+
+    var directKeys = [
+      'odpt:isCanceled',
+      'odpt:isCancelled',
+      'odpt:isSuspended',
+      'odpt:cancelled',
+      'odpt:canceled',
+      'isCanceled',
+      'isCancelled',
+      'isSuspended',
+      'cancelled',
+      'canceled',
+      'suspended'
+    ];
+
+    for (var i = 0; i < directKeys.length; i++) {
+      if (cancelFinalValueLooksCancelled(obj[directKeys[i]])) return true;
+    }
+
+    var textKeys = [
+      'odpt:trainStatus',
+      'odpt:status',
+      'odpt:note',
+      'odpt:notes',
+      'odpt:remarks',
+      'odpt:trainInformationStatus',
+      'odpt:trainInformationText',
+      'odpt:operationStatus',
+      'dc:title',
+      'description',
+      'title'
+    ];
+
+    for (var j = 0; j < textKeys.length; j++) {
+      var v = obj[textKeys[j]];
+
+      if (Array.isArray(v)) {
+        for (var k = 0; k < v.length; k++) {
+          if (cancelFinalValueLooksCancelled(v[k])) return true;
+        }
+      } else if (cancelFinalValueLooksCancelled(v)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  var __baseIsCancelledDataObjectFinal =
+    typeof isCancelledDataObject === 'function' ? isCancelledDataObject : null;
+
+  isCancelledDataObject = function(obj) {
+    if (__baseIsCancelledDataObjectFinal && __baseIsCancelledDataObjectFinal(obj)) return true;
+    return cancelFinalObjectLooksCancelled(obj);
+  };
+
+  function cancelFinalNormalizeTrainNumber(value) {
+    if (typeof normalizeTrainNumberForMatch === 'function') {
+      return normalizeTrainNumberForMatch(value || '');
+    }
+
+    return String(value || '').replace(/\s+/g, '');
+  }
+
+  function cancelFinalSameTrainNumber(a, b) {
+    var aa = cancelFinalNormalizeTrainNumber(a);
+    var bb = cancelFinalNormalizeTrainNumber(b);
+    return !!aa && !!bb && aa === bb;
+  }
+
+  function cancelFinalStationName(value, stationMap) {
+    if (!value) return '';
+
+    var name = value;
+
+    if (typeof getNameFromStationUri === 'function') {
+      name = getNameFromStationUri(value, stationMap || {});
+    } else {
+      name = String(value).split('.').pop();
+    }
+
+    if (typeof toJapaneseStationName === 'function') {
+      name = toJapaneseStationName(name);
+    }
+
+    return name;
+  }
+
+  function cancelFinalSameStation(a, b) {
+    if (!a || !b) return false;
+
+    var aa = typeof normalizeStationName === 'function' ? normalizeStationName(a) : String(a);
+    var bb = typeof normalizeStationName === 'function' ? normalizeStationName(b) : String(b);
+
+    return aa === bb;
+  }
+
+  function cancelFinalTrainTimetableSaysCancelled(lineId, trainNumber) {
+    var list = odptTrainTimetableCacheByLine && odptTrainTimetableCacheByLine[lineId]
+      ? odptTrainTimetableCacheByLine[lineId]
+      : [];
+
+    for (var i = 0; i < list.length; i++) {
+      var item = list[i];
+
+      if (!cancelFinalSameTrainNumber(item['odpt:trainNumber'], trainNumber)) continue;
+
+      if (isCancelledDataObject(item)) return true;
+
+      var objects =
+        item['odpt:trainTimetableObject'] ||
+        item['odpt:trainTimetable'] ||
+        item['odpt:stationTimetableObject'] ||
+        [];
+
+      if (!Array.isArray(objects)) objects = [];
+
+      for (var j = 0; j < objects.length; j++) {
+        if (isCancelledDataObject(objects[j])) return true;
+      }
+    }
+
+    return false;
+  }
+
+  function cancelFinalStationTimetableSaysCancelled(lineId, stationName, direction, trainNumber) {
+    var list = odptStationTimetableCacheByLine && odptStationTimetableCacheByLine[lineId]
+      ? odptStationTimetableCacheByLine[lineId]
+      : [];
+
+    var stationMap = typeof getCachedStationMap === 'function' ? (getCachedStationMap(lineId) || {}) : {};
+
+    for (var i = 0; i < list.length; i++) {
+      var item = list[i];
+
+      var itemStation = cancelFinalStationName(item['odpt:station'], stationMap);
+      if (stationName && itemStation && !cancelFinalSameStation(itemStation, stationName)) continue;
+
+      var itemDirection = typeof getDirectionFromRailDirectionForLine === 'function'
+        ? getDirectionFromRailDirectionForLine(lineId, item['odpt:railDirection'])
+        : '';
+
+      if (direction && itemDirection && itemDirection !== direction) continue;
+
+      var objects = typeof getStationTimetableObjects === 'function'
+        ? getStationTimetableObjects(item)
+        : (item['odpt:stationTimetableObject'] || []);
+
+      if (!Array.isArray(objects)) objects = [];
+
+      for (var j = 0; j < objects.length; j++) {
+        var obj = objects[j];
+
+        if (!cancelFinalSameTrainNumber(obj['odpt:trainNumber'], trainNumber)) continue;
+
+        if (isCancelledDataObject(obj) || isCancelledDataObject(item)) return true;
+      }
+    }
+
+    return false;
+  }
+
+  function cancelFinalLiveTrainSaysCancelled(lineId, trainNumber) {
+    if (typeof currentTrains === 'undefined' || !Array.isArray(currentTrains)) return false;
+
+    for (var i = 0; i < currentTrains.length; i++) {
+      var train = currentTrains[i];
+
+      if (lineId && train.line !== lineId) continue;
+      if (!cancelFinalSameTrainNumber(train.trainNumber, trainNumber)) continue;
+
+      if (isCancelledDataObject(train)) return true;
+    }
+
+    return false;
+  }
+
+  function cancelFinalIsStationRowCancelled(lineId, stationName, direction, row) {
+    if (!row) return false;
+
+    if (isCancelledDataObject(row)) return true;
+
+    var trainNumber = row.trainNumber || row['odpt:trainNumber'] || '';
+    if (!trainNumber) return false;
+
+    if (cancelFinalLiveTrainSaysCancelled(lineId, trainNumber)) return true;
+    if (cancelFinalStationTimetableSaysCancelled(lineId, stationName, direction, trainNumber)) return true;
+    if (cancelFinalTrainTimetableSaysCancelled(lineId, trainNumber)) return true;
+
+    return false;
+  }
+
+  var __baseGetStationTimetableRowsFromOdptCancelFinal =
+    typeof getStationTimetableRowsFromOdpt === 'function' ? getStationTimetableRowsFromOdpt : null;
+
+  if (__baseGetStationTimetableRowsFromOdptCancelFinal) {
+    getStationTimetableRowsFromOdpt = function(lineId, stationName, direction) {
+      var rows = __baseGetStationTimetableRowsFromOdptCancelFinal(lineId, stationName, direction) || [];
+
+      return rows.filter(function(row) {
+        return !cancelFinalIsStationRowCancelled(lineId, stationName, direction, row);
+      });
+    };
+  }
+
+  var __baseMakeLiveStationRowsCancelFinal =
+    typeof makeLiveStationRows === 'function' ? makeLiveStationRows : null;
+
+  if (__baseMakeLiveStationRowsCancelFinal) {
+    makeLiveStationRows = function(stationName, direction) {
+      var rows = __baseMakeLiveStationRowsCancelFinal(stationName, direction) || [];
+      var lineId = typeof getCurrentSelectedLineIdForDetail === 'function'
+        ? getCurrentSelectedLineIdForDetail()
+        : getSelectedLineId();
+
+      return rows.filter(function(row) {
+        return !cancelFinalIsStationRowCancelled(lineId, stationName, direction, row);
+      });
+    };
+  }
+
+  var __baseBuildStationTimetableRowsForLineCancelFinal =
+    typeof buildStationTimetableRowsForLine === 'function' ? buildStationTimetableRowsForLine : null;
+
+  if (__baseBuildStationTimetableRowsForLineCancelFinal) {
+    buildStationTimetableRowsForLine = function(lineId, stationTimetables, trainTimetables, stationMap) {
+      var filteredStationTimetables = (stationTimetables || []).filter(function(item) {
+        return !isCancelledDataObject(item);
+      });
+
+      var filteredTrainTimetables = (trainTimetables || []).filter(function(item) {
+        return !isCancelledDataObject(item);
+      });
+
+      __baseBuildStationTimetableRowsForLineCancelFinal(
+        lineId,
+        filteredStationTimetables,
+        filteredTrainTimetables,
+        stationMap
+      );
+
+      var byStation = odptStationRowsByLineStation && odptStationRowsByLineStation[lineId];
+      if (!byStation) return;
+
+      for (var station in byStation) {
+        ['down', 'up'].forEach(function(direction) {
+          byStation[station][direction] = (byStation[station][direction] || []).filter(function(row) {
+            return !cancelFinalIsStationRowCancelled(lineId, station, direction, row);
+          });
+        });
+      }
+    };
+  }
 
 </script>
 </body>
